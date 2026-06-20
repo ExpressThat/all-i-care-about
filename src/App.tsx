@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner"
-import "./App.css";
+import Layout from "./components/ui/custom/layout";
 
 function App() {
 
@@ -31,6 +31,9 @@ function App() {
 
   return (
     <>
+      <Layout>
+        <p>test</p>
+      </Layout>
       <Toaster />
     </>
   );
