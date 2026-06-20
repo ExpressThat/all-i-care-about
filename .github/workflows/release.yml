@@ -1,0 +1,225 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    name: Publish Tauri (${{ matrix.platform }} ${{ matrix.args }})
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: "--target aarch64-apple-darwin"
+          - platform: macos-latest
+            args: "--target x86_64-apple-darwin"
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set release version from tag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag '$GITHUB_REF_NAME' is not a supported semver tag." >&2
+            exit 1
+          fi
+
+          node <<'NODE'
+          const fs = require("fs");
+
+          const version = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+
+          const packageJsonPath = "package.json";
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+          packageJson.version = version;
+          fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+          const tauriConfigPath = "src-tauri/tauri.conf.json";
+          const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, "utf8"));
+          tauriConfig.version = version;
+          fs.writeFileSync(tauriConfigPath, `${JSON.stringify(tauriConfig, null, 2)}\n`);
+
+          const cargoTomlPath = "src-tauri/Cargo.toml";
+          const cargoToml = fs.readFileSync(cargoTomlPath, "utf8");
+          fs.writeFileSync(
+            cargoTomlPath,
+            cargoToml.replace(/^version = ".*"$/m, `version = "${version}"`),
+          );
+          NODE
+
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Azure login for Windows signing
+        if: runner.os == 'Windows'
+        uses: azure/login@v3
+        with:
+          creds: >-
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            }
+
+      - name: Install Windows signing tool
+        if: runner.os == 'Windows'
+        run: cargo install artifact-signing-cli --locked
+
+      - name: Install Apple certificates and notary profile
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          INSTALLER_CERTIFICATE_BASE64: ${{ secrets.INSTALLER_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM: ${{ secrets.APPLE_TEAM }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_BUILD_PATH="$RUNNER_TEMP/build_certificate.p12"
+          CERT_INSTALLER_PATH="$RUNNER_TEMP/installer_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_BUILD_PATH"
+          echo -n "$INSTALLER_CERTIFICATE_BASE64" | base64 --decode -o "$CERT_INSTALLER_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_BUILD_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security import "$CERT_INSTALLER_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          CERT_ID=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' '/Developer ID Application|Apple Distribution/ { print $2; exit }')
+          if [ -z "$CERT_ID" ]; then
+            echo "No Developer ID Application or Apple Distribution signing identity found."
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+            exit 1
+          fi
+
+          xcrun notarytool store-credentials \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM" \
+            --password "$APPLE_PASSWORD" \
+            --keychain "$KEYCHAIN_PATH" \
+            tauri-profile
+
+          echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
+          echo "APPLE_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Write release Tauri config
+        shell: bash
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const pubkey = process.env.TAURI_SIGNING_PUBLIC_KEY;
+          if (!pubkey) {
+            throw new Error("Missing TAURI_SIGNING_PUBLIC_KEY secret.");
+          }
+
+          const config = {
+            bundle: {
+              createUpdaterArtifacts: true,
+            },
+            plugins: {
+              updater: {
+                pubkey,
+                endpoints: [
+                  `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/latest/download/latest.json`,
+                ],
+                windows: {
+                  installMode: "passive",
+                },
+              },
+            },
+          };
+
+          if (process.env.RUNNER_OS === "Windows") {
+            const endpoint = process.env.AZURE_TRUSTED_SIGNING_ENDPOINT;
+            const account = process.env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME;
+            const profile = process.env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME;
+
+            if (!endpoint || !account || !profile) {
+              throw new Error("Missing Azure Trusted Signing secrets.");
+            }
+
+            config.bundle.windows = {
+              signCommand: `artifact-signing-cli -e "${endpoint}" -a "${account}" -c "${profile}" -d "all-i-care-about" %1`,
+            };
+          }
+
+          fs.writeFileSync("src-tauri/tauri.release.conf.json", JSON.stringify(config, null, 2));
+          NODE
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM }}
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          APPLE_KEYCHAIN: ${{ env.APPLE_KEYCHAIN_PATH }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "all-i-care-about ${{ github.ref_name }}"
+          releaseBody: "See the assets below to download and install this version."
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
+
+      - name: Clean up Apple keychain
+        if: ${{ always() && runner.os == 'macOS' && env.APPLE_KEYCHAIN_PATH != '' }}
+        run: security delete-keychain "$APPLE_KEYCHAIN_PATH"
