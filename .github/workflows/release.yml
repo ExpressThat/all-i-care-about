@@ -88,24 +88,78 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
+      - name: Setup .NET
+        if: runner.os == 'Windows'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      - name: Azure login for Windows signing
+      - name: Install Windows signing dependencies
         if: runner.os == 'Windows'
-        uses: azure/login@v3
-        with:
-          creds: >-
-            {
-              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-              "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-            }
+        shell: pwsh
+        env:
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
+        run: |
+          winget install -e --id Microsoft.Azure.ArtifactSigningClientTools --accept-package-agreements --accept-source-agreements
 
-      - name: Install Windows signing tool
-        if: runner.os == 'Windows'
-        run: cargo install artifact-signing-cli --locked
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match "\\x64\\signtool\.exe$" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (-not $signtool) {
+            throw "signtool.exe was not found in the Windows SDK."
+          }
+
+          $dlibSearchRoots = @(
+            "${env:ProgramFiles(x86)}\Microsoft\ArtifactSigningClientTools",
+            "${env:ProgramFiles}\Microsoft\ArtifactSigningClientTools",
+            "${env:LOCALAPPDATA}\Microsoft\MicrosoftArtifactSigningClientTools"
+          ) | Where-Object { Test-Path $_ }
+
+          $dlib = Get-ChildItem $dlibSearchRoots -Recurse -Filter Azure.CodeSigning.Dlib.dll |
+            Sort-Object @{ Expression = { $_.FullName -notmatch "\\x64\\" } }, FullName |
+            Select-Object -First 1
+
+          if (-not $dlib) {
+            throw "Azure.CodeSigning.Dlib.dll was not found."
+          }
+
+          $metadataPath = Join-Path $env:RUNNER_TEMP "artifact-signing-metadata.json"
+          @{
+            Endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT
+            CodeSigningAccountName = $env:AZURE_TRUSTED_SIGNING_ACCOUNT_NAME
+            CertificateProfileName = $env:AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME
+            ExcludeCredentials = @(
+              "ManagedIdentityCredential",
+              "WorkloadIdentityCredential",
+              "SharedTokenCacheCredential",
+              "VisualStudioCredential",
+              "VisualStudioCodeCredential",
+              "AzureCliCredential",
+              "AzurePowerShellCredential",
+              "AzureDeveloperCliCredential",
+              "InteractiveBrowserCredential"
+            )
+          } | ConvertTo-Json -Depth 3 | Set-Content -Path $metadataPath -Encoding UTF8
+
+          $signCommandPath = Join-Path $env:RUNNER_TEMP "sign-windows.cmd"
+          @"
+          @echo off
+          setlocal
+          "$($signtool.FullName)" sign /v /debug /fd SHA256 /tr "http://timestamp.acs.microsoft.com" /td SHA256 /dlib "$($dlib.FullName)" /dmdf "$metadataPath" /d "all-i-care-about" "%~1"
+          exit /b %ERRORLEVEL%
+          "@ | Set-Content -Path $signCommandPath -Encoding ASCII
+
+          $env:RUNNER_TEMP | Out-File -FilePath $env:GITHUB_PATH -Append
+
+          & $signtool.FullName /?
+          az version
 
       - name: Install Apple certificates and notary profile
         if: runner.os == 'macOS'
@@ -194,7 +248,7 @@ jobs:
             }
 
             config.bundle.windows = {
-              signCommand: `artifact-signing-cli -e "${endpoint}" -a "${account}" -c "${profile}" -d "all-i-care-about" %1`,
+              signCommand: "sign-windows.cmd %1",
             };
           }
 
@@ -220,7 +274,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "all-i-care-about ${{ github.ref_name }}"
           releaseBody: "See the assets below to download and install this version."
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json
 
