@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner"
+import { ThemeController } from "@/lib/settings/theme/ThemeController"
 import Layout from "./components/ui/custom/layout";
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
 
   return (
     <>
+      <ThemeController />
       <Layout>
         <p>test</p>
       </Layout>

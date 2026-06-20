@@ -7,7 +7,11 @@ import {
 } from "@/components/ui/sidebar"
 import { Cog } from "lucide-react"
 
-export function AppSidebar() {
+export function AppSidebar({
+    onOpenSettings,
+}: {
+    onOpenSettings: () => void
+}) {
     return (
         <Sidebar>
             <SidebarHeader>
@@ -20,9 +24,14 @@ export function AppSidebar() {
                 <SidebarGroup />
             </SidebarContent>
             <SidebarFooter>
-                <div className="flex gap-2 cursor-pointer hover:scale-99 hover:backdrop-brightness-95 w-full">
-                    <Cog /> Settings
-                </div>
+                <button
+                    className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                    onClick={onOpenSettings}
+                    type="button"
+                >
+                    <Cog aria-hidden="true" className="size-4" />
+                    <span>Settings</span>
+                </button>
             </SidebarFooter>
         </Sidebar>
     )
