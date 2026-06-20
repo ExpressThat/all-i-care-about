@@ -107,6 +107,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $artifactSigningCli = Join-Path $env:CARGO_HOME "bin\artifact-signing-cli.exe"
+          if (-not (Test-Path $artifactSigningCli)) {
+            $artifactSigningCli = (Get-Command artifact-signing-cli -ErrorAction Stop).Source
+          }
+
           $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
             Where-Object { $_.FullName -like "*\x64\signtool.exe" } |
             Sort-Object FullName -Descending |
@@ -117,8 +122,10 @@ jobs:
             exit 1
           }
 
+          "ARTIFACT_SIGNING_CLI_PATH=$artifactSigningCli" | Out-File -FilePath $env:GITHUB_ENV -Append
           "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          artifact-signing-cli --version
+          & $artifactSigningCli --version
+          Write-Host "Using artifact-signing-cli at $artifactSigningCli"
           Write-Host "Using SignTool at $($signTool.FullName)"
 
       - name: Install Apple certificates and notary profile
@@ -202,14 +209,13 @@ jobs:
             const endpoint = process.env.AZURE_TRUSTED_SIGNING_ENDPOINT;
             const account = process.env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME;
             const profile = process.env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME;
-            const signToolPath = process.env.SIGNTOOL_PATH;
 
-            if (!endpoint || !account || !profile || !signToolPath) {
+            if (!endpoint || !account || !profile) {
               throw new Error("Missing Azure Trusted Signing secrets.");
             }
 
             config.bundle.windows = {
-              signCommand: `artifact-signing-cli --sign-tool-path "${signToolPath}" -e "${endpoint}" -a "${account}" -c "${profile}" -d "all-i-care-about" %1`,
+              signCommand: `powershell -NoProfile -ExecutionPolicy Bypass -File .github/scripts/sign-windows.ps1 %1`,
             };
           }
 
@@ -232,6 +238,10 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           SIGNTOOL_PATH: ${{ env.SIGNTOOL_PATH }}
+          ARTIFACT_SIGNING_CLI_PATH: ${{ env.ARTIFACT_SIGNING_CLI_PATH }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_ARTIFACT_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
+          AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "all-i-care-about ${{ github.ref_name }}"
