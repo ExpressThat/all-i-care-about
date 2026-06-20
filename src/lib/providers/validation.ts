@@ -1,0 +1,24 @@
+import {
+  isProviderCapability,
+} from "./capabilities"
+import {
+  isProviderType,
+  isStringRecord,
+  type ProviderInstance,
+} from "./providerTypes"
+
+export function isProviderInstance(value: unknown): value is ProviderInstance {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false
+  }
+
+  const candidate = value as Partial<ProviderInstance>
+  return (
+    typeof candidate.id === "string" &&
+    isProviderType(candidate.type) &&
+    typeof candidate.displayName === "string" &&
+    isStringRecord(candidate.settings) &&
+    Array.isArray(candidate.enabledCapabilities) &&
+    candidate.enabledCapabilities.every(isProviderCapability)
+  )
+}

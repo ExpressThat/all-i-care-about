@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { initSettingsStore, useSetting } from "@/lib/settings/settingsStore"
+import { useSetting } from "@/lib/settings/settingsStore"
 import { calculateTheme } from "./themeUtils"
 
 export function ThemeController() {
@@ -7,10 +7,6 @@ export function ThemeController() {
   const [systemPreference, setSystemPreference] = useState<
     "dark" | "light" | null
   >(null)
-
-  useEffect(() => {
-    void initSettingsStore()
-  }, [])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)")

@@ -1,5 +1,6 @@
 import { useRef, useSyncExternalStore } from "react"
 import { load, type Store } from "@tauri-apps/plugin-store"
+import { isProviderInstance } from "@/lib/providers/validation"
 import {
   DEFAULT_SETTINGS,
   isAppTheme,
@@ -49,9 +50,14 @@ function notify(changedKeys: SettingsKey[]) {
 async function readPersistedSettings(settingsStore: Store): Promise<Settings> {
   const nextSettings = { ...DEFAULT_SETTINGS }
   const theme = await settingsStore.get<unknown>("Theme")
+  const providers = await settingsStore.get<unknown>("Providers")
 
   if (isAppTheme(theme)) {
     nextSettings.Theme = theme
+  }
+
+  if (Array.isArray(providers)) {
+    nextSettings.Providers = providers.filter(isProviderInstance)
   }
 
   return nextSettings
@@ -178,6 +184,25 @@ export function useSetting<K extends SettingsKey>(key: K): Settings[K] {
     (onStoreChange) => subscribeToKey(key, onStoreChange),
     () => settings[key],
     () => settings[key],
+  )
+}
+
+export function useSettingSelector<K extends SettingsKey, T>(
+  key: K,
+  selector: (value: Settings[K]) => T,
+  isEqual: (a: T, b: T) => boolean = Object.is,
+): T {
+  const selectedRef = useRef<T>(selector(settings[key]))
+  return useSyncExternalStore(
+    (onStoreChange) => subscribeToKey(key, onStoreChange),
+    () => {
+      const next = selector(settings[key])
+      if (!isEqual(selectedRef.current, next)) {
+        selectedRef.current = next
+      }
+      return selectedRef.current
+    },
+    () => selectedRef.current,
   )
 }
 

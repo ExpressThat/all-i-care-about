@@ -128,3 +128,31 @@
     @apply font-sans;
     }
 }
+
+@layer utilities {
+  .themed-scrollbar {
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  .themed-scrollbar::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  .themed-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .themed-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  .themed-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
+    background-clip: padding-box;
+  }
+}
