@@ -103,6 +103,24 @@ jobs:
         if: runner.os == 'Windows'
         run: cargo install artifact-signing-cli --locked
 
+      - name: Locate Windows SignTool
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -like "*\x64\signtool.exe" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+
+          if (-not $signTool) {
+            Write-Error "Could not find x64 signtool.exe."
+            exit 1
+          }
+
+          "SIGNTOOL_PATH=$($signTool.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          artifact-signing-cli --version
+          Write-Host "Using SignTool at $($signTool.FullName)"
+
       - name: Install Apple certificates and notary profile
         if: runner.os == 'macOS'
         shell: bash
@@ -184,13 +202,14 @@ jobs:
             const endpoint = process.env.AZURE_TRUSTED_SIGNING_ENDPOINT;
             const account = process.env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME;
             const profile = process.env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME;
+            const signToolPath = process.env.SIGNTOOL_PATH;
 
-            if (!endpoint || !account || !profile) {
+            if (!endpoint || !account || !profile || !signToolPath) {
               throw new Error("Missing Azure Trusted Signing secrets.");
             }
 
             config.bundle.windows = {
-              signCommand: `artifact-signing-cli -e "${endpoint}" -a "${account}" -c "${profile}" -d "all-i-care-about" %1`,
+              signCommand: `artifact-signing-cli --sign-tool-path "${signToolPath}" -e "${endpoint}" -a "${account}" -c "${profile}" -d "all-i-care-about" %1`,
             };
           }
 
@@ -212,6 +231,7 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SIGNTOOL_PATH: ${{ env.SIGNTOOL_PATH }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "all-i-care-about ${{ github.ref_name }}"
