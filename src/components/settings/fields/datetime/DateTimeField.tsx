@@ -1,0 +1,97 @@
+import { CalendarIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import type { DateTimeProviderField } from "@/lib/providers/providerTypes"
+import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings"
+import {
+  formatDate,
+  isDateDisabled,
+  startOfDayTimestamp,
+} from "../date/helpers"
+import {
+  timeInputValue,
+  timePart,
+  timeValueFromInput,
+} from "../time/helpers"
+
+export function DateTimeField({
+  ariaDescribedBy,
+  field,
+  fieldId,
+  onChange,
+  value,
+}: {
+  ariaDescribedBy?: string
+  field: DateTimeProviderField
+  fieldId: string
+  onChange: (value: ProviderFieldFormValue) => void
+  value: number | undefined
+}) {
+  const selectedDate = value === undefined ? undefined : new Date(value)
+  const timeValue = value === undefined ? "" : timeInputValue(timePart(value))
+
+  function updateDate(date: Date | undefined) {
+    if (!date) {
+      onChange("")
+      return
+    }
+
+    const nextTime = value === undefined ? 0 : timePart(value)
+    onChange(startOfDayTimestamp(date) + nextTime)
+  }
+
+  function updateTime(nextTime: string) {
+    const parsedTime = timeValueFromInput(nextTime)
+    if (parsedTime === undefined) {
+      onChange(value === undefined ? "" : startOfDayTimestamp(new Date(value)))
+      return
+    }
+
+    const nextDate =
+      value === undefined
+        ? startOfDayTimestamp(new Date())
+        : startOfDayTimestamp(new Date(value))
+    onChange(nextDate + parsedTime)
+  }
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,16rem)_7.5rem]">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            aria-describedby={ariaDescribedBy}
+            className="w-full justify-start"
+            id={fieldId}
+            type="button"
+            variant="outline"
+          >
+            <CalendarIcon aria-hidden="true" className="size-4" />
+            {selectedDate ? formatDate(selectedDate) : field.placeholder ?? "Select date"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-0">
+          <Calendar
+            disabled={(date) => isDateDisabled(date, field)}
+            mode="single"
+            onSelect={updateDate}
+            selected={selectedDate}
+          />
+        </PopoverContent>
+      </Popover>
+      <Input
+        aria-label={`${field.label} time`}
+        max={field.max !== undefined ? timeInputValue(timePart(field.max)) : undefined}
+        min={field.min !== undefined ? timeInputValue(timePart(field.min)) : undefined}
+        onChange={(event) => updateTime(event.currentTarget.value)}
+        type="time"
+        value={timeValue}
+      />
+    </div>
+  )
+}

@@ -1,8 +1,6 @@
 import { invoke } from "@tauri-apps/api/core"
 import type {
   ProviderInstance,
-  ProviderPlugin,
-  ProviderSettingValue,
   ProviderType,
 } from "./providerTypes"
 
@@ -34,57 +32,21 @@ export type ProviderFetchFor = (
 
 export function createProviderFetch<Type extends ProviderType>(
   provider: ProviderInstance<Type>,
-  plugin: ProviderPlugin,
-  settings: Record<string, unknown>,
 ): ProviderFetchFor {
   return async (url, options = {}) => {
-    const encryptedValue = options.secret
-      ? provider.settings[options.secret.settingKey]
-      : undefined
-
-    if (options.secret && typeof encryptedValue !== "string") {
-      throw new Error(
-        `Provider "${provider.displayName}" is missing secret setting "${options.secret.settingKey}".`,
-      )
-    }
-
     const response = await invoke<RustProviderFetchResponse>("provider_fetch", {
       request: {
-        providerType: provider.type,
+        providerId: provider.id,
         url,
         method: options.method,
         headers: serializeHeaders(options.headers),
         body: await serializeBody(options.body),
-        allowedOrigins: getAllowedOrigins(plugin, settings),
-        settings: provider.settings,
-        secret:
-          options.secret && typeof encryptedValue === "string"
-            ? {
-                encryptedValue,
-                settingKey: options.secret.settingKey,
-                headerName: options.secret.headerName,
-                valueTemplate: options.secret.valueTemplate,
-              }
-            : undefined,
+        secret: options.secret,
       },
     })
 
     return createResponse(response)
   }
-}
-
-export type ProviderFetchSettings = Record<string, ProviderSettingValue>
-
-function getAllowedOrigins(
-  plugin: ProviderPlugin,
-  settings: Record<string, unknown>,
-) {
-  return [
-    ...(plugin.httpAccess?.staticAllowedOrigins ?? []),
-    ...(plugin.httpAccess?.getAllowedOrigins?.(
-      settings as never,
-    ) ?? []),
-  ]
 }
 
 function createResponse(response: RustProviderFetchResponse) {

@@ -40,6 +40,7 @@ type ProviderTextFieldBase = ProviderFieldBase & {
   minLength?: number
   maxLength?: number
   pattern?: string
+  originAccess?: boolean
   secret?: false
 }
 
@@ -105,9 +106,8 @@ export type ProviderField =
   | SecretProviderField
   | ProviderGroupField
 
-export type ProviderHttpAccess<Type extends ProviderType = ProviderType> = {
+export type ProviderHttpAccess = {
   staticAllowedOrigins?: readonly string[]
-  getAllowedOrigins?: (settings: NonSecretProviderSettings<Type>) => string[]
 }
 
 export type ProviderPlugin<
@@ -120,7 +120,7 @@ export type ProviderPlugin<
   icon: LucideIcon
   fields: Fields
   capabilities: readonly ProviderCapability[]
-  httpAccess?: ProviderHttpAccess<Type>
+  httpAccess?: ProviderHttpAccess
 }
 
 export type NonSecretProviderSettings<Type extends ProviderType> =

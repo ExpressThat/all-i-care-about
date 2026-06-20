@@ -1,6 +1,6 @@
 import { useRef, useSyncExternalStore } from "react"
-import { load, type Store } from "@tauri-apps/plugin-store"
-import { isProviderInstance } from "@/lib/providers/validation"
+import { invoke } from "@tauri-apps/api/core"
+import type { ProviderInstance } from "@/lib/providers/providerTypes"
 import {
   DEFAULT_SETTINGS,
   isAppTheme,
@@ -8,15 +8,12 @@ import {
   type SettingsKey,
 } from "./Settings"
 
-const SETTINGS_STORE_PATH = "settings.json"
-
 type Listener = () => void
 type KeyedListeners = { [K in SettingsKey]: Set<Listener> }
 
 let settings: Settings = { ...DEFAULT_SETTINGS }
 let initialized = false
 let initPromise: Promise<void> | null = null
-let store: Store | null = null
 
 const allListeners = new Set<Listener>()
 const keyedListeners = createKeyedListeners()
@@ -47,22 +44,6 @@ function notify(changedKeys: SettingsKey[]) {
   }
 }
 
-async function readPersistedSettings(settingsStore: Store): Promise<Settings> {
-  const nextSettings = { ...DEFAULT_SETTINGS }
-  const theme = await settingsStore.get<unknown>("Theme")
-  const providers = await settingsStore.get<unknown>("Providers")
-
-  if (isAppTheme(theme)) {
-    nextSettings.Theme = theme
-  }
-
-  if (Array.isArray(providers)) {
-    nextSettings.Providers = providers.filter(isProviderInstance)
-  }
-
-  return nextSettings
-}
-
 export async function initSettingsStore(): Promise<void> {
   if (initialized) {
     return
@@ -73,18 +54,11 @@ export async function initSettingsStore(): Promise<void> {
   }
 
   initPromise = (async () => {
-    const settingsStore = await load(SETTINGS_STORE_PATH, {
-      autoSave: false,
-      defaults: DEFAULT_SETTINGS,
-    })
-
-    store = settingsStore
-    settings = await readPersistedSettings(settingsStore)
+    settings = normalizeSettings(await invoke<Settings>("get_settings"))
     initialized = true
     notify(Object.keys(DEFAULT_SETTINGS) as SettingsKey[])
   })()
     .catch((error) => {
-      store = null
       settings = { ...DEFAULT_SETTINGS }
       initialized = true
       console.error(
@@ -126,56 +100,46 @@ export async function setSetting<K extends SettingsKey>(
   value: Settings[K],
 ): Promise<void> {
   await initSettingsStore()
-  if (Object.is(settings[key], value)) {
-    return
-  }
 
-  settings = { ...settings, [key]: value }
-  notify([key])
-
-  if (!store) {
-    return
+  if (key !== "Theme") {
+    throw new Error(`Setting "${String(key)}" must be changed through a Rust command.`)
   }
 
   try {
-    await store.set(key, value)
-    await store.save()
+    settings = normalizeSettings(await invoke<Settings>("set_theme", { theme: value }))
+    notify(["Theme"])
   } catch (error) {
     console.error(`Failed to persist setting "${String(key)}".`, error)
+    throw error
   }
 }
 
 export async function setSettings(patch: Partial<Settings>): Promise<void> {
   await initSettingsStore()
-  const changedEntries: Array<[SettingsKey, Settings[SettingsKey]]> = []
-
-  for (const key of Object.keys(patch) as SettingsKey[]) {
-    const nextValue = patch[key]
-    if (nextValue === undefined || Object.is(settings[key], nextValue)) {
-      continue
-    }
-    changedEntries.push([key, nextValue])
+  if (patch.Theme !== undefined) {
+    await setSetting("Theme", patch.Theme)
   }
+}
 
-  if (changedEntries.length === 0) {
-    return
-  }
-
-  const updates = Object.fromEntries(changedEntries) as Partial<Settings>
-  settings = { ...settings, ...updates }
-  notify(changedEntries.map(([key]) => key))
-
-  if (!store) {
-    return
-  }
-
+export async function saveProvider(provider: ProviderInstance): Promise<void> {
+  await initSettingsStore()
   try {
-    for (const [key, value] of changedEntries) {
-      await store.set(key, value)
-    }
-    await store.save()
+    settings = normalizeSettings(await invoke<Settings>("save_provider", { provider }))
+    notify(["Providers"])
   } catch (error) {
-    console.error("Failed to persist settings patch.", error)
+    console.error("Failed to save provider.", error)
+    throw error
+  }
+}
+
+export async function removeProvider(providerId: string): Promise<void> {
+  await initSettingsStore()
+  try {
+    settings = normalizeSettings(await invoke<Settings>("remove_provider", { providerId }))
+    notify(["Providers"])
+  } catch (error) {
+    console.error("Failed to remove provider.", error)
+    throw error
   }
 }
 
@@ -226,4 +190,11 @@ export function useSettings<T>(
     },
     () => selectedRef.current,
   )
+}
+
+function normalizeSettings(value: Settings): Settings {
+  return {
+    Providers: Array.isArray(value.Providers) ? value.Providers : [],
+    Theme: isAppTheme(value.Theme) ? value.Theme : DEFAULT_SETTINGS.Theme,
+  }
 }

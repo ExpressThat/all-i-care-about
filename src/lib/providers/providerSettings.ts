@@ -1,4 +1,3 @@
-import { encryptSecret, isEncryptedSecret } from "@/lib/security/secretCrypto"
 import type {
   NonSecretProviderSettings,
   ProviderField,
@@ -82,6 +81,16 @@ export function normalizePersistedFieldValue(
   }
 }
 
+export function getProviderAllowedOrigins(
+  plugin: ProviderPlugin,
+  settings: ProviderSettingsRecord,
+) {
+  return normalizeOriginSet([
+    ...(plugin.httpAccess?.staticAllowedOrigins ?? []),
+    ...collectOriginAccessFields(plugin.fields, settings),
+  ])
+}
+
 async function collectPersistedFields({
   existingSettings,
   fieldValues,
@@ -117,16 +126,8 @@ async function collectPersistedFields({
     const value = fieldValues[formKey]
 
     if (field.secret) {
-      if (isEditing && isEmptyFormValue(value)) {
-        const existingValue = existingSettings?.[field.key]
-        if (typeof existingValue === "string") {
-          settings[field.key] =
-            existingValue && !isEncryptedSecret(existingValue)
-              ? await encryptSecret(existingValue)
-              : existingValue
-        }
-      } else if (typeof value === "string" && value) {
-        settings[field.key] = await encryptSecret(value)
+      if (typeof value === "string" && value) {
+        settings[field.key] = value
       }
       continue
     }
@@ -168,6 +169,39 @@ function collectNonSecretFields(
   }
 
   return nonSecretSettings
+}
+
+function collectOriginAccessFields(
+  fields: readonly ProviderField[],
+  settings: ProviderSettingsRecord,
+): string[] {
+  const origins: string[] = []
+
+  for (const field of fields) {
+    if (field.type === "group") {
+      origins.push(
+        ...collectOriginAccessFields(
+          field.fields,
+          getNestedSettings(settings, field.key) ?? {},
+        ),
+      )
+      continue
+    }
+
+    if (field.type !== "url" || !field.originAccess) {
+      continue
+    }
+
+    const value = settings[field.key]
+    if (typeof value === "string" && value) {
+      const origin = normalizeOrigin(value)
+      if (origin) {
+        origins.push(origin)
+      }
+    }
+  }
+
+  return origins
 }
 
 function collectEditableFields(
@@ -266,4 +300,24 @@ function isScalarProviderSettingValue(
 
 function isEmptyFormValue(value: ProviderFieldFormValue | undefined) {
   return value === undefined || value === ""
+}
+
+function normalizeOriginSet(origins: readonly string[]) {
+  return Array.from(
+    new Set(origins.map(normalizeOrigin).filter((origin) => origin !== null)),
+  ).sort()
+}
+
+function normalizeOrigin(value: string) {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:") {
+      return null
+    }
+    return url.port
+      ? `${url.protocol}//${url.hostname.toLowerCase()}:${url.port}`
+      : `${url.protocol}//${url.hostname.toLowerCase()}`
+  } catch {
+    return null
+  }
 }

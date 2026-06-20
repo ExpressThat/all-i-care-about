@@ -112,7 +112,7 @@ export function getProviderCapabilityImplementation<
   return ((input: ProviderCapabilityInput<Capability>) =>
     runImplementation(input, {
       settings,
-      providerFetch: createProviderFetch(provider, plugin, settings),
+      providerFetch: createProviderFetch(provider),
     })) as ProviderCapabilityRunner<Capability>
 }
 

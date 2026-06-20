@@ -9,13 +9,22 @@ export const jiraProviderPlugin = {
   icon: Ticket,
   fields: [
     {
+      key: "apiUrl",
+      label: "API URL",
+      type: "url",
+      required: true,
+      originAccess: true,
+      placeholder: "https://example.atlassian.net",
+      description: "The Jira site origin this provider can contact.",
+    },
+    {
       key: "personalAccessToken",
       label: "Personal Access Token",
       type: "secret",
       required: true,
       secret: true,
-      placeholder: "ghp_...",
-      description: "Used by the GitHub provider to access pull requests and issues.",
+      placeholder: "ATATT...",
+      description: "Used by the Jira provider to access issues.",
     }
   ] as const,
   capabilities: jiraProviderCapabilities,
