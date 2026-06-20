@@ -11,12 +11,17 @@ export const githubProviderPlugin = {
     {
       key: "personalAccessToken",
       label: "Personal Access Token",
-      type: "password",
-      required: true,
+      type: "secret",
+      required: false,
       secret: true,
       placeholder: "ghp_...",
       description: "Used by the GitHub provider to access pull requests and issues.",
     },
-  ],
+  ] as const,
   capabilities: githubProviderCapabilities,
+  httpAccess: {
+    staticAllowedOrigins: [
+      "https://api.github.com",
+    ],
+  },
 } satisfies ProviderPlugin

@@ -127,6 +127,18 @@
   html {
     @apply font-sans;
     }
+
+  input,
+  textarea,
+  select {
+    color-scheme: light;
+  }
+
+  .dark input,
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
 }
 
 @layer utilities {

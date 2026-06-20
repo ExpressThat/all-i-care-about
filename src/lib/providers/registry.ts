@@ -2,6 +2,7 @@ import {
   githubProviderImplementation,
   githubProviderPlugin,
 } from "./github"
+import { useMemo } from "react"
 import {
   getSetting,
   initSettingsStore,
@@ -11,6 +12,8 @@ import type { ProviderCapability } from "./capabilities"
 import type {
   ProviderCapabilityInput,
   ProviderCapabilityResult,
+  ProviderCapabilityRunner,
+  ProviderImplementationContext,
   ProviderImplementation,
 } from "./contracts"
 import type {
@@ -18,6 +21,8 @@ import type {
   ProviderPlugin,
   ProviderType,
 } from "./providerTypes"
+import { createProviderFetch } from "./providerHttp"
+import { getNonSecretProviderSettings } from "./providerSettings"
 import { jiraProviderImplementation, jiraProviderPlugin } from "./jira"
 
 export const providerPlugins: ProviderPlugin[] = [
@@ -28,7 +33,10 @@ export const providerPlugins: ProviderPlugin[] = [
 const providerImplementations = {
   github: githubProviderImplementation,
   jira: jiraProviderImplementation,
-} satisfies Record<ProviderType, ProviderImplementation>
+} satisfies {
+  github: ProviderImplementation<"github">
+  jira: ProviderImplementation<"jira">
+}
 
 type ProviderImplementationByType = typeof providerImplementations
 type ProviderCapabilityForType<Type extends ProviderType> =
@@ -61,14 +69,16 @@ export function useProviderImp<
 >(
   type: Type,
   capability: Capability,
-): ProviderImplementationByType[Type][Capability] | null {
+): ProviderCapabilityRunner<Capability> | null {
   const provider = useProvider(type)
 
-  if (!provider) {
-    return null
-  }
+  return useMemo(() => {
+    if (!provider) {
+      return null
+    }
 
-  return getProviderCapabilityImplementation(provider, capability)
+    return getProviderCapabilityImplementation(provider, capability)
+  }, [capability, provider])
 }
 
 export function getProviderCapabilityImplementation<
@@ -77,12 +87,33 @@ export function getProviderCapabilityImplementation<
 >(
   provider: ProviderInstance<Type>,
   capability: Capability,
-): ProviderImplementationByType[Type][Capability] | null {
+): ProviderCapabilityRunner<Capability> | null {
   if (!provider.enabledCapabilities.includes(capability)) {
     return null
   }
 
-  return providerImplementations[provider.type]?.[capability] ?? null
+  const implementation = providerImplementations[provider.type]?.[capability]
+  const plugin = getProviderPlugin(provider.type)
+
+  if (!implementation || !plugin) {
+    return null
+  }
+
+  const runImplementation =
+    implementation as unknown as (
+      input: ProviderCapabilityInput<Capability>,
+      context: ProviderImplementationContext<Type>,
+    ) => ProviderCapabilityResult<Capability>
+  const settings = getNonSecretProviderSettings<Type>(
+    provider.settings,
+    plugin.fields,
+  )
+
+  return ((input: ProviderCapabilityInput<Capability>) =>
+    runImplementation(input, {
+      settings,
+      providerFetch: createProviderFetch(provider, plugin, settings),
+    })) as ProviderCapabilityRunner<Capability>
 }
 
 export function runProviderCapability<
@@ -104,17 +135,14 @@ export function runProviderCapability<
     )
   }
 
-  const runImplementation = implementation as unknown as (
-    input: ProviderCapabilityInput<Capability>,
-  ) => ProviderCapabilityResult<Capability>
-
-  return runImplementation(input)
+  return implementation(input)
 }
 
 function validateProviderRegistry() {
   for (const plugin of providerPlugins) {
-    const implementation: ProviderImplementation =
-      providerImplementations[plugin.type]
+    const implementation = providerImplementations[plugin.type] as Partial<
+      Record<ProviderCapability, unknown>
+    >
     const missingCapabilities = plugin.capabilities.filter(
       (capability) => !implementation?.[capability],
     )

@@ -3,7 +3,7 @@ import {
 } from "./capabilities"
 import {
   isProviderType,
-  isStringRecord,
+  isProviderSettingRecord,
   type ProviderInstance,
 } from "./providerTypes"
 
@@ -17,7 +17,7 @@ export function isProviderInstance(value: unknown): value is ProviderInstance {
     typeof candidate.id === "string" &&
     isProviderType(candidate.type) &&
     typeof candidate.displayName === "string" &&
-    isStringRecord(candidate.settings) &&
+    isProviderSettingRecord(candidate.settings) &&
     Array.isArray(candidate.enabledCapabilities) &&
     candidate.enabledCapabilities.every(isProviderCapability)
   )

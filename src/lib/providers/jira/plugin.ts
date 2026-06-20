@@ -11,12 +11,12 @@ export const jiraProviderPlugin = {
     {
       key: "personalAccessToken",
       label: "Personal Access Token",
-      type: "password",
+      type: "secret",
       required: true,
       secret: true,
       placeholder: "ghp_...",
       description: "Used by the GitHub provider to access pull requests and issues.",
-    },
-  ],
+    }
+  ] as const,
   capabilities: jiraProviderCapabilities,
 } satisfies ProviderPlugin

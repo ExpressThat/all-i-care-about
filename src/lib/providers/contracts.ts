@@ -1,5 +1,7 @@
 import type { ProviderType } from "./providerTypes"
 import type { ProviderCapability } from "./capabilities"
+import type { ProviderFetchFor } from "./providerHttp"
+import type { NonSecretProviderSettings } from "./providerTypes"
 
 export type GetPRInput = {
   owner: string
@@ -31,23 +33,41 @@ export type ProviderIssue = {
   sourceProvider: ProviderType
 }
 
-export type ProviderCapabilityContractMap = {
-  GetPR(input: GetPRInput): Promise<ProviderPR>
-  GetIssue(input: GetIssueInput): Promise<ProviderIssue>
+export type ProviderImplementationContext<Type extends ProviderType> = {
+  settings: NonSecretProviderSettings<Type>
+  providerFetch: ProviderFetchFor
 }
 
-export type ProviderImplementation = Partial<ProviderCapabilityContractMap>
+export type ProviderCapabilityContractMap<Type extends ProviderType> = {
+  GetPR(
+    input: GetPRInput,
+    context: ProviderImplementationContext<Type>,
+  ): Promise<ProviderPR>
+  GetIssue(
+    input: GetIssueInput,
+    context: ProviderImplementationContext<Type>,
+  ): Promise<ProviderIssue>
+}
+
+export type ProviderImplementation<Type extends ProviderType = ProviderType> =
+  Partial<ProviderCapabilityContractMap<Type>>
 
 export type ProviderCapabilityFunction<
   Capability extends ProviderCapability,
-> = ProviderCapabilityContractMap[Capability]
+  Type extends ProviderType = ProviderType,
+> = ProviderCapabilityContractMap<Type>[Capability]
 
 export type ProviderCapabilityInput<Capability extends ProviderCapability> =
-  Parameters<ProviderCapabilityFunction<Capability>>[0]
+  Parameters<ProviderCapabilityContractMap<ProviderType>[Capability]>[0]
 
 export type ProviderCapabilityResult<Capability extends ProviderCapability> =
-  ReturnType<ProviderCapabilityFunction<Capability>>
+  ReturnType<ProviderCapabilityContractMap<ProviderType>[Capability]>
+
+export type ProviderCapabilityRunner<Capability extends ProviderCapability> = (
+  input: ProviderCapabilityInput<Capability>,
+) => ProviderCapabilityResult<Capability>
 
 export type ProviderImplementationFor<
+  Type extends ProviderType,
   Capabilities extends readonly ProviderCapability[],
-> = Pick<ProviderCapabilityContractMap, Capabilities[number]>
+> = Pick<ProviderCapabilityContractMap<Type>, Capabilities[number]>
