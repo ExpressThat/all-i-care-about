@@ -1,6 +1,6 @@
-import type { ProviderCapability } from "../capabilities"
+import type { ProviderCapabilityForKinds } from "../capabilities"
 
 export const githubProviderCapabilities = [
-  "GetPR",
-  "GetIssue",
-] as const satisfies readonly ProviderCapability[]
+  "PR",
+  "Issue",
+] as const satisfies readonly ProviderCapabilityForKinds<["git", "issue"]>[]

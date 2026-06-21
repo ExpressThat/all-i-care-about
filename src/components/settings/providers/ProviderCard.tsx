@@ -5,7 +5,7 @@ import {
   type ProviderCapability,
 } from "@/lib/providers/capabilities"
 import { getProviderPlugin } from "@/lib/providers/registry"
-import type { ProviderInstance } from "@/lib/providers/providerTypes"
+import type { ProviderField, ProviderInstance } from "@/lib/providers/providerTypes"
 
 export function ProviderCard({
   onEdit,
@@ -18,7 +18,7 @@ export function ProviderCard({
 }) {
   const plugin = getProviderPlugin(provider.type)
   const Icon = plugin?.icon ?? Workflow
-  const secretFields = plugin?.fields.filter((field) => field.secret) ?? []
+  const secretFields = plugin?.fields.filter(isSecretField) ?? []
 
   return (
     <article className="rounded-lg border bg-card p-4 text-card-foreground">
@@ -89,4 +89,8 @@ export function ProviderCard({
 
 function getCapabilityDisplayName(capability: ProviderCapability) {
   return getProviderCapabilityDefinition(capability)?.displayName ?? capability
+}
+
+function isSecretField(field: ProviderField) {
+  return "secret" in field && field.secret === true
 }

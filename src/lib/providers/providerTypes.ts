@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import type { ProviderCapability } from "./capabilities"
+import type { ProviderCapability, ProviderKind } from "./capabilities"
 
 /** Unique identifier for a provider plugin family supported by the app. */
 export type ProviderType = "github" | "jira"
@@ -287,6 +287,8 @@ export type ProviderPlugin<
   fields: Fields
   /** Capability short names this plugin can implement. */
   capabilities: readonly ProviderCapability[]
+  /** Provider domains this plugin belongs to. */
+  providerKinds: readonly ProviderKind[]
   /** Static HTTP access metadata used when sealing provider origins. */
   httpAccess?: ProviderHttpAccess
 }

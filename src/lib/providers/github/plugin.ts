@@ -19,6 +19,7 @@ export const githubProviderPlugin = {
     },
   ] as const,
   capabilities: githubProviderCapabilities,
+  providerKinds: ["git", "issue"],
   httpAccess: {
     staticAllowedOrigins: [
       "https://api.github.com",

@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import {
   getProviderCapabilityDefinition,
+  isCapabilityAllowedForProvider,
   type ProviderCapability,
 } from "@/lib/providers/capabilities"
 import type {
@@ -38,7 +39,7 @@ export function ProviderPicker({
 }) {
   const filteredProviderPlugins = providerPlugins.filter((plugin) =>
     matchesSearch(
-      `${plugin.label} ${plugin.description} ${plugin.type}`,
+      `${plugin.label} ${plugin.description} ${plugin.type} ${plugin.providerKinds.join(" ")}`,
       providerSearch,
     ),
   )
@@ -87,9 +88,13 @@ export function CapabilityPicker({
   selectedCapabilities: ProviderCapability[]
 }) {
   const filteredCapabilities = plugin.capabilities.filter((capability) => {
+    if (!isCapabilityAllowedForProvider(plugin, capability)) {
+      return false
+    }
+
     const definition = getProviderCapabilityDefinition(capability)
     return matchesSearch(
-      `${capability} ${definition?.displayName ?? ""} ${definition?.description ?? ""}`,
+      `${capability} ${definition?.providerKind ?? ""} ${definition?.displayName ?? ""} ${definition?.description ?? ""}`,
       capabilitySearch,
     )
   })

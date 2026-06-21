@@ -1,5 +1,9 @@
 import type { ProviderType } from "./providerTypes"
-import type { ProviderCapability } from "./capabilities"
+import type {
+  ProviderCapability,
+  ProviderCapabilityImplementation,
+  ProviderImplementationsForCapabilities,
+} from "./capabilities"
 import type { ProviderFetchFor } from "./providerHttp"
 import type { NonSecretProviderSettings } from "./providerTypes"
 
@@ -79,16 +83,25 @@ export type ProviderCapabilityContractMap<Type extends ProviderType> = {
   /**
    * Fetches provider-neutral pull request details.
    *
-   * Providers should implement this only when their plugin declares `GetPR`.
+   * Providers should implement this only when their plugin declares `PR`.
    */
   GetPR(
     input: GetPRInput,
     context: ProviderImplementationContext<Type>,
   ): Promise<ProviderPR>
   /**
+   * Fetches provider-neutral pull requests details.
+   *
+   * Providers should implement this only when their plugin declares `PR`.
+   */
+  GetPRs(
+    input: Omit<GetPRInput, "pullNumber">,
+    context: ProviderImplementationContext<Type>,
+  ): Promise<ProviderPR[]>
+  /**
    * Fetches provider-neutral issue details.
    *
-   * Providers should implement this only when their plugin declares `GetIssue`.
+   * Providers should implement this only when their plugin declares `Issue`.
    */
   GetIssue(
     input: GetIssueInput,
@@ -102,25 +115,32 @@ export type ProviderImplementation<Type extends ProviderType = ProviderType> =
 
 /** Function type for one capability on one provider type. */
 export type ProviderCapabilityFunction<
-  Capability extends ProviderCapability,
+  Capability extends ProviderCapabilityImplementation,
   Type extends ProviderType = ProviderType,
 > = ProviderCapabilityContractMap<Type>[Capability]
 
 /** Input type for a named provider capability. */
-export type ProviderCapabilityInput<Capability extends ProviderCapability> =
+export type ProviderCapabilityInput<
+  Capability extends ProviderCapabilityImplementation,
+> =
   Parameters<ProviderCapabilityContractMap<ProviderType>[Capability]>[0]
 
 /** Promise result type for a named provider capability. */
-export type ProviderCapabilityResult<Capability extends ProviderCapability> =
+export type ProviderCapabilityResult<
+  Capability extends ProviderCapabilityImplementation,
+> =
   ReturnType<ProviderCapabilityContractMap<ProviderType>[Capability]>
 
 /** Callable runner exposed to app code after provider/capability checks pass. */
-export type ProviderCapabilityRunner<Capability extends ProviderCapability> = (
-  input: ProviderCapabilityInput<Capability>,
-) => ProviderCapabilityResult<Capability>
+export type ProviderCapabilityRunner<
+  Capability extends ProviderCapabilityImplementation,
+> = (input: ProviderCapabilityInput<Capability>) => ProviderCapabilityResult<Capability>
 
 /** Strict implementation type requiring all capabilities declared by a plugin. */
 export type ProviderImplementationFor<
   Type extends ProviderType,
   Capabilities extends readonly ProviderCapability[],
-> = Pick<ProviderCapabilityContractMap<Type>, Capabilities[number]>
+> = Pick<
+  ProviderCapabilityContractMap<Type>,
+  ProviderImplementationsForCapabilities<Capabilities[number]>
+>

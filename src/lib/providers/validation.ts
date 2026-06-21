@@ -1,5 +1,6 @@
 import {
   isProviderCapability,
+  normalizeProviderCapability,
 } from "./capabilities"
 import {
   isProviderType,
@@ -19,7 +20,11 @@ export function isProviderInstance(value: unknown): value is ProviderInstance {
     typeof candidate.displayName === "string" &&
     isProviderSettingRecord(candidate.settings) &&
     Array.isArray(candidate.enabledCapabilities) &&
-    candidate.enabledCapabilities.every(isProviderCapability) &&
+    candidate.enabledCapabilities.every(
+      (capability) =>
+        isProviderCapability(capability) ||
+        normalizeProviderCapability(capability) !== null,
+    ) &&
     (
       candidate.security === undefined ||
       (

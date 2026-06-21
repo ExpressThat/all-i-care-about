@@ -28,4 +28,5 @@ export const jiraProviderPlugin = {
     }
   ] as const,
   capabilities: jiraProviderCapabilities,
+  providerKinds: ["issue"],
 } satisfies ProviderPlugin

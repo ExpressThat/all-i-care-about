@@ -8,7 +8,13 @@ import {
   initSettingsStore,
   useSettingSelector,
 } from "@/lib/settings/settingsStore"
-import type { ProviderCapability } from "./capabilities"
+import {
+  getCapabilityForImplementation,
+  getCapabilitiesForProviderKinds,
+  getImplementationsForCapability,
+  isCapabilityAllowedForProvider,
+  type ProviderCapabilityImplementation,
+} from "./capabilities"
 import type {
   ProviderCapabilityInput,
   ProviderCapabilityResult,
@@ -18,14 +24,15 @@ import type {
 } from "./contracts"
 import type {
   ProviderInstance,
-  ProviderPlugin,
+  KnownProviderPlugin,
+  ProviderPluginForType,
   ProviderType,
 } from "./providerTypes"
 import { createProviderFetch } from "./providerHttp"
 import { getNonSecretProviderSettings } from "./providerSettings"
 import { jiraProviderImplementation, jiraProviderPlugin } from "./jira"
 
-export const providerPlugins: ProviderPlugin[] = [
+export const providerPlugins: KnownProviderPlugin[] = [
   githubProviderPlugin,
   jiraProviderPlugin,
 ]
@@ -40,12 +47,37 @@ const providerImplementations = {
 
 type ProviderImplementationByType = typeof providerImplementations
 type ProviderCapabilityForType<Type extends ProviderType> =
-  keyof ProviderImplementationByType[Type] & ProviderCapability
+  Extract<
+    ProviderCapabilityImplementation,
+    keyof ProviderImplementationByType[Type] &
+      ProviderCapabilityImplementation
+  > extends infer Implementation
+    ? Implementation extends ProviderCapabilityImplementation
+      ? GetCapabilityForImplementationType<Implementation> extends ProviderPluginForType<Type>["capabilities"][number]
+        ? Implementation
+        : never
+      : never
+    : never
+
+type GetCapabilityForImplementationType<
+  Implementation extends ProviderCapabilityImplementation,
+> = {
+  GetPR: "PR"
+  GetPRs: "PR"
+  GetIssue: "Issue"
+}[Implementation]
 
 validateProviderRegistry()
 
-export function getProviderPlugin(type: ProviderType) {
-  return providerPlugins.find((plugin) => plugin.type === type) ?? null
+export function getProviderPlugin<Type extends ProviderType>(
+  type: Type,
+): ProviderPluginForType<Type> | null {
+  return (
+    providerPlugins.find(
+      (plugin): plugin is ProviderPluginForType<Type> =>
+        plugin.type === type,
+    ) ?? null
+  )
 }
 
 export async function getProvider<Type extends ProviderType>(
@@ -88,7 +120,8 @@ export function getProviderCapabilityImplementation<
   provider: ProviderInstance<Type>,
   capability: Capability,
 ): ProviderCapabilityRunner<Capability> | null {
-  if (!provider.enabledCapabilities.includes(capability)) {
+  const capabilityGroup = getCapabilityForImplementation(capability)
+  if (!capabilityGroup || !provider.enabledCapabilities.includes(capabilityGroup)) {
     return null
   }
 
@@ -140,11 +173,36 @@ export function runProviderCapability<
 
 function validateProviderRegistry() {
   for (const plugin of providerPlugins) {
+    const invalidKindCapabilities = plugin.capabilities.filter(
+      (capability) => !isCapabilityAllowedForProvider(plugin, capability),
+    )
+
+    if (invalidKindCapabilities.length > 0) {
+      throw new Error(
+        `Provider "${plugin.type}" declares capabilities outside its provider kinds: ${invalidKindCapabilities.join(", ")}`,
+      )
+    }
+
+    const allowedCapabilities = getCapabilitiesForProviderKinds(
+      plugin.providerKinds,
+    )
+    const unknownKindCapabilities = plugin.capabilities.filter(
+      (capability) => !allowedCapabilities.includes(capability),
+    )
+
+    if (unknownKindCapabilities.length > 0) {
+      throw new Error(
+        `Provider "${plugin.type}" declares unsupported capabilities: ${unknownKindCapabilities.join(", ")}`,
+      )
+    }
+
     const implementation = providerImplementations[plugin.type] as Partial<
-      Record<ProviderCapability, unknown>
+      Record<ProviderCapabilityImplementation, unknown>
     >
-    const missingCapabilities = plugin.capabilities.filter(
-      (capability) => !implementation?.[capability],
+    const missingCapabilities = plugin.capabilities.flatMap((capability) =>
+      getImplementationsForCapability(capability).filter(
+        (implementationName) => !implementation?.[implementationName],
+      ),
     )
 
     if (missingCapabilities.length > 0) {

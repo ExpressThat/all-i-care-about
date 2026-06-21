@@ -1,6 +1,7 @@
 import { useRef, useSyncExternalStore } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import type { ProviderInstance } from "@/lib/providers/providerTypes"
+import { normalizeProviderCapability } from "@/lib/providers/capabilities"
 import {
   DEFAULT_SETTINGS,
   isAppTheme,
@@ -223,7 +224,22 @@ export function useSettings<T>(
 
 function normalizeSettings(value: Settings): Settings {
   return {
-    Providers: Array.isArray(value.Providers) ? value.Providers : [],
+    Providers: Array.isArray(value.Providers)
+      ? value.Providers.map(normalizeProvider)
+      : [],
     Theme: isAppTheme(value.Theme) ? value.Theme : DEFAULT_SETTINGS.Theme,
+  }
+}
+
+function normalizeProvider(provider: ProviderInstance): ProviderInstance {
+  return {
+    ...provider,
+    enabledCapabilities: Array.from(
+      new Set(
+        provider.enabledCapabilities
+          .map(normalizeProviderCapability)
+          .filter((capability) => capability !== null),
+      ),
+    ),
   }
 }
