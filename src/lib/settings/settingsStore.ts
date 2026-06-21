@@ -121,10 +121,39 @@ export async function setSettings(patch: Partial<Settings>): Promise<void> {
   }
 }
 
-export async function saveProvider(provider: ProviderInstance): Promise<void> {
+/** Security metadata submitted with provider saves for Rust sealing. */
+export type ProviderSaveSecurityInput = {
+  /**
+   * Candidate normalized HTTPS origins for the provider instance.
+   *
+   * Rust validates and seals these before persistence. Existing secrets are
+   * preserved only when the old sealed origin set matches this submitted set.
+   */
+  allowedOrigins: string[]
+  /**
+   * Dotted paths for secret fields declared by the provider plugin.
+   *
+   * Rust stores these in the sealed security payload so fetch-time secret
+   * injection can reject undeclared secret paths.
+   */
+  secretSettingPaths: string[]
+}
+
+export async function saveProvider(
+  provider: ProviderInstance,
+  security: ProviderSaveSecurityInput,
+): Promise<void> {
   await initSettingsStore()
   try {
-    settings = normalizeSettings(await invoke<Settings>("save_provider", { provider }))
+    settings = normalizeSettings(
+      await invoke<Settings>("save_provider", {
+        request: {
+          provider,
+          allowedOrigins: security.allowedOrigins,
+          secretSettingPaths: security.secretSettingPaths,
+        },
+      }),
+    )
     notify(["Providers"])
   } catch (error) {
     console.error("Failed to save provider.", error)

@@ -4,15 +4,33 @@ import type {
   ProviderType,
 } from "./providerTypes"
 
+/** Secret injection request metadata for a Rust-owned provider HTTP request. */
 export type ProviderFetchSecret = {
+  /**
+   * Dotted provider setting path for the secret to inject.
+   *
+   * The path must refer to a declared secret field for the provider instance,
+   * otherwise Rust rejects the request.
+   */
   settingKey: string
+  /** HTTP header name that should receive the rendered secret value. */
   headerName: string
+  /**
+   * Header value template.
+   *
+   * Rust replaces `{secret}` with the decrypted secret, for example
+   * `"Bearer {secret}"`.
+   */
   valueTemplate: string
 }
 
+/** Fetch-like options supported by providerFetch. */
 export type ProviderFetchOptions = Omit<RequestInit, "headers" | "body"> & {
+  /** Request headers forwarded to Rust before optional secret injection. */
   headers?: HeadersInit
+  /** Request body forwarded to Rust. FormData is not supported yet. */
   body?: BodyInit | null
+  /** Optional secret header injection performed inside Rust. */
   secret?: ProviderFetchSecret
 }
 
@@ -25,6 +43,7 @@ type RustProviderFetchResponse = {
   bodyBase64: string
 }
 
+/** Fetch-like helper exposed to provider implementations. */
 export type ProviderFetchFor = (
   url: string,
   options?: ProviderFetchOptions,

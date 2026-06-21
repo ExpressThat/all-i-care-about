@@ -17,12 +17,15 @@ import { getProviderPlugin, providerPlugins } from "@/lib/providers/registry"
 import {
   collectPersistedProviderSettings,
   getEditableProviderFieldValues,
+  getProviderAllowedOrigins,
+  getProviderSecretSettingPaths,
   type ProviderFieldFormValue,
 } from "@/lib/providers/providerSettings"
 import type {
   ProviderInstance,
   ProviderType,
 } from "@/lib/providers/providerTypes"
+import type { ProviderSaveSecurityInput } from "@/lib/settings/settingsStore"
 import {
   CapabilityPicker,
   ProviderPicker,
@@ -42,7 +45,10 @@ export function AddProviderWizard({
 }: {
   editingProvider: ProviderInstance | null
   onOpenChange: (open: boolean) => void
-  onSaveProvider: (provider: ProviderInstance) => Promise<void>
+  onSaveProvider: (
+    provider: ProviderInstance,
+    security: ProviderSaveSecurityInput,
+  ) => Promise<void>
   open: boolean
 }) {
   const [selectedProviderType, setSelectedProviderType] =
@@ -183,7 +189,13 @@ export function AddProviderWizard({
     setError("")
 
     try {
-      await onSaveProvider(provider)
+      if (!selectedPlugin) {
+        throw new Error("Select a provider.")
+      }
+      await onSaveProvider(provider, {
+        allowedOrigins: getProviderAllowedOrigins(selectedPlugin, provider.settings),
+        secretSettingPaths: getProviderSecretSettingPaths(selectedPlugin),
+      })
       setPendingProviderSave(null)
       handleOpenChange(false)
     } catch (saveError) {

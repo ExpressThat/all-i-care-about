@@ -19,6 +19,17 @@ export function isProviderInstance(value: unknown): value is ProviderInstance {
     typeof candidate.displayName === "string" &&
     isProviderSettingRecord(candidate.settings) &&
     Array.isArray(candidate.enabledCapabilities) &&
-    candidate.enabledCapabilities.every(isProviderCapability)
+    candidate.enabledCapabilities.every(isProviderCapability) &&
+    (
+      candidate.security === undefined ||
+      (
+        Array.isArray(candidate.security.allowedOrigins) &&
+        candidate.security.allowedOrigins.every(
+          (origin) => typeof origin === "string",
+        ) &&
+        typeof candidate.security.sealed === "string" &&
+        candidate.security.version === 1
+      )
+    )
   )
 }

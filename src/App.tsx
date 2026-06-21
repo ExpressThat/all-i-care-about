@@ -6,7 +6,6 @@ import { ThemeController } from "@/lib/settings/theme/ThemeController"
 import Layout from "./components/ui/custom/layout";
 
 function App() {
-
   useEffect(() => {
     if (import.meta.env.DEV || !("__TAURI_INTERNALS__" in window)) {
       return;

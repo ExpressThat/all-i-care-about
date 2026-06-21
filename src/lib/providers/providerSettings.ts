@@ -7,7 +7,10 @@ import type {
   ProviderType,
 } from "./providerTypes"
 
+/** Primitive value stored in the provider wizard form state. */
 export type ProviderFieldFormValue = string | number | boolean
+
+/** Flat provider wizard form state keyed by dotted field path. */
 export type ProviderFieldFormValues = Record<string, ProviderFieldFormValue>
 
 export async function collectPersistedProviderSettings({
@@ -89,6 +92,10 @@ export function getProviderAllowedOrigins(
     ...(plugin.httpAccess?.staticAllowedOrigins ?? []),
     ...collectOriginAccessFields(plugin.fields, settings),
   ])
+}
+
+export function getProviderSecretSettingPaths(plugin: ProviderPlugin) {
+  return collectSecretSettingPaths(plugin.fields, [])
 }
 
 async function collectPersistedFields({
@@ -202,6 +209,28 @@ function collectOriginAccessFields(
   }
 
   return origins
+}
+
+function collectSecretSettingPaths(
+  fields: readonly ProviderField[],
+  path: readonly string[],
+): string[] {
+  const secretPaths: string[] = []
+
+  for (const field of fields) {
+    if (field.type === "group") {
+      secretPaths.push(
+        ...collectSecretSettingPaths(field.fields, [...path, field.key]),
+      )
+      continue
+    }
+
+    if (field.secret) {
+      secretPaths.push(getFieldFormKey(path, field.key))
+    }
+  }
+
+  return secretPaths
 }
 
 function collectEditableFields(

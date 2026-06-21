@@ -5,6 +5,7 @@ import type { ProviderInstance } from "@/lib/providers/providerTypes"
 import {
   removeProvider as removePersistedProvider,
   saveProvider as savePersistedProvider,
+  type ProviderSaveSecurityInput,
   useSetting,
 } from "@/lib/settings/settingsStore"
 import { AddProviderWizard } from "./providers/AddProviderWizard"
@@ -31,8 +32,11 @@ export function ProvidersSettings() {
     setWizardOpen(true)
   }
 
-  async function saveProvider(provider: ProviderInstance) {
-    await savePersistedProvider(provider)
+  async function saveProvider(
+    provider: ProviderInstance,
+    security: ProviderSaveSecurityInput,
+  ) {
+    await savePersistedProvider(provider, security)
   }
 
   return (

@@ -1,8 +1,13 @@
+/** Stable short name for a provider capability contract. */
 export type ProviderCapability = "GetPR" | "GetIssue"
 
+/** Human-facing metadata for a provider capability. */
 export type ProviderCapabilityDefinition = {
+  /** Stable short name persisted on provider instances. */
   shortName: ProviderCapability
+  /** Human-readable name shown in provider setup UI. */
   displayName: string
+  /** Short explanation of what the capability returns. */
   description: string
 }
 

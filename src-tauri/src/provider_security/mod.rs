@@ -5,14 +5,13 @@ mod settings;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use crypto::decrypt_secret;
-use metadata::{
-    allowed_origins_for_provider, is_secret_field, metadata_for_provider, origin_for_url,
-};
+use metadata::origin_for_url;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use settings::{
+    get_setting_value, parse_setting_path,
     read_settings, remove_provider_settings, save_provider_settings, write_settings,
-    ProviderInstance, Settings,
+    verify_provider_security, SaveProviderRequest, Settings,
 };
 use std::collections::HashMap;
 use tauri::AppHandle;
@@ -67,8 +66,8 @@ pub fn set_theme(app: AppHandle, theme: String) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-pub fn save_provider(app: AppHandle, provider: ProviderInstance) -> Result<Settings, String> {
-    save_provider_settings(&app, provider)
+pub fn save_provider(app: AppHandle, request: SaveProviderRequest) -> Result<Settings, String> {
+    save_provider_settings(&app, request)
 }
 
 #[tauri::command]
@@ -87,9 +86,9 @@ pub async fn provider_fetch(
         .iter()
         .find(|provider| provider.id == request.provider_id)
         .ok_or_else(|| "Provider is not configured.".to_string())?;
-    let metadata = metadata_for_provider(provider.provider_type);
+    let provider_security = verify_provider_security(&app, provider)?;
 
-    validate_allowed_origin(metadata, &provider.settings, &request.url)?;
+    validate_allowed_origin(&provider_security.allowed_origins, &request.url)?;
 
     let method = request.method.as_deref().unwrap_or("GET");
     let method = reqwest::Method::from_bytes(method.as_bytes())
@@ -105,7 +104,12 @@ pub async fn provider_fetch(
 
     if let Some(secret) = request.secret {
         let setting_path = parse_setting_path(&secret.setting_key)?;
-        if !is_secret_field(metadata.fields, &setting_path) {
+        let normalized_setting_path = setting_path.join(".");
+        if !provider_security
+            .secret_setting_paths
+            .iter()
+            .any(|path| path == &normalized_setting_path)
+        {
             return Err(format!(
                 "\"{}\" is not a secret setting for this provider.",
                 secret.setting_key
@@ -156,40 +160,16 @@ pub async fn provider_fetch(
     })
 }
 
-fn validate_allowed_origin(
-    metadata: metadata::ProviderMetadata,
-    settings: &Map<String, Value>,
-    request_url: &str,
-) -> Result<(), String> {
+fn validate_allowed_origin(allowed_origins: &[String], request_url: &str) -> Result<(), String> {
     let request_origin = origin_for_url(request_url)?;
-    let allowed_origins = allowed_origins_for_provider(metadata, settings)?;
 
-    if allowed_origins.contains(&request_origin) {
+    if allowed_origins.iter().any(|origin| origin == &request_origin) {
         return Ok(());
     }
 
     Err(format!(
         "Provider request origin \"{request_origin}\" is not allowed."
     ))
-}
-
-fn get_setting_value<'a>(settings: &'a Map<String, Value>, path: &[&str]) -> Option<&'a Value> {
-    let (head, tail) = path.split_first()?;
-    let value = settings.get(*head)?;
-
-    if tail.is_empty() {
-        return Some(value);
-    }
-
-    get_setting_value(value.as_object()?, tail)
-}
-
-fn parse_setting_path(value: &str) -> Result<Vec<&str>, String> {
-    let path: Vec<&str> = value.split('.').filter(|part| !part.is_empty()).collect();
-    if path.is_empty() {
-        return Err("Secret setting key is required.".to_string());
-    }
-    Ok(path)
 }
 
 fn response_headers(headers: &reqwest::header::HeaderMap) -> HashMap<String, String> {

@@ -42,9 +42,19 @@ export function validateEmailField(field: ProviderField, value: string) {
 export function validateUrlField(field: ProviderField, value: string) {
   try {
     const url = new URL(value)
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? ""
-      : `${field.label} must be a valid URL.`
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return `${field.label} must be a valid URL.`
+    }
+
+    if (
+      field.type === "url" &&
+      field.originAccess &&
+      url.protocol !== "https:"
+    ) {
+      return `${field.label} must use HTTPS because it can receive provider secrets.`
+    }
+
+    return ""
   } catch {
     return `${field.label} must be a valid URL.`
   }
