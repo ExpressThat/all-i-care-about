@@ -10,6 +10,11 @@ pub async fn get_provider_rate_limit_used(
     provider_id: String,
     window_seconds: i64,
 ) -> Result<i64, String> {
+    log::debug!(
+        "get_provider_rate_limit_used request received: provider_id={}, window_seconds={}",
+        provider_id,
+        window_seconds
+    );
     let pool = db_pool(&app).await?;
     let since = now_seconds() - window_seconds.max(0);
     let row = sqlx::query(
@@ -19,14 +24,22 @@ pub async fn get_provider_rate_limit_used(
         WHERE provider_id = ? AND created_at >= ?
         "#,
     )
-    .bind(provider_id)
+    .bind(&provider_id)
     .bind(since)
     .fetch_one(&pool)
     .await
     .map_err(|error| format!("Failed to load provider rate-limit usage: {error}"))?;
 
-    row.try_get::<i64, _>("used")
-        .map_err(|error| format!("Failed to read provider rate-limit usage: {error}"))
+    let used = row
+        .try_get::<i64, _>("used")
+        .map_err(|error| format!("Failed to read provider rate-limit usage: {error}"))?;
+    log::info!(
+        "get_provider_rate_limit_used completed: provider_id={}, window_seconds={}, used={}",
+        provider_id,
+        window_seconds,
+        used
+    );
+    Ok(used)
 }
 
 pub async fn log_provider_request(
@@ -47,6 +60,17 @@ pub async fn log_provider_request(
         path.push('?');
         path.push_str(query);
     }
+    log::debug!(
+        "Persisting provider request log: provider_id={}, provider_type={}, method={}, origin={}, path={}, status_code={:?}, success={}, rate_limit_used={}",
+        provider_id,
+        provider_type,
+        method,
+        origin,
+        path,
+        status_code,
+        success,
+        rate_limit_used
+    );
 
     sqlx::query(
         r#"
@@ -70,6 +94,10 @@ pub async fn log_provider_request(
     .map_err(|error| format!("Failed to log provider request: {error}"))?;
 
     let _ = app.emit("provider-request-log-updated", provider_id);
+    log::debug!(
+        "Provider request log persisted and event emitted: provider_id={}",
+        provider_id
+    );
     Ok(())
 }
 

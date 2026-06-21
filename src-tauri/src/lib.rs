@@ -1,3 +1,4 @@
+mod issue_cache;
 mod provider_security;
 mod providers;
 mod repository_cache;
@@ -8,6 +9,15 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .clear_targets()
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
+                ))
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -19,13 +29,25 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            log::info!("Application setup started");
             let app = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 loop {
-                    let _ = repository_cache::trigger_provider_pr_poll(app.clone()).await;
+                    log::debug!("Background provider poll cycle started");
+                    if let Err(error) =
+                        repository_cache::trigger_provider_pr_poll(app.clone()).await
+                    {
+                        log::error!("Background PR poll failed: {error}");
+                    }
+                    if let Err(error) = issue_cache::trigger_provider_issue_poll(app.clone()).await
+                    {
+                        log::error!("Background issue poll failed: {error}");
+                    }
+                    log::debug!("Background provider poll cycle completed");
                     tokio::time::sleep(Duration::from_secs(300)).await;
                 }
             });
+            log::info!("Application setup completed");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -40,7 +62,16 @@ pub fn run() {
             repository_cache::accessible::list_accessible_repositories,
             repository_cache::accessible::refresh_accessible_repositories,
             repository_cache::watched::trigger_provider_pr_poll,
-            repository_cache::request_log::get_provider_rate_limit_used
+            repository_cache::request_log::get_provider_rate_limit_used,
+            issue_cache::watched::list_watched_issue_sources,
+            issue_cache::watched::add_watched_issue_source,
+            issue_cache::watched::remove_watched_issue_source,
+            issue_cache::accessible::list_accessible_issue_sources,
+            issue_cache::accessible::refresh_accessible_issue_sources,
+            issue_cache::statuses::list_cached_issue_statuses,
+            issue_cache::statuses::set_visible_issue_statuses,
+            issue_cache::issues::list_cached_issues,
+            issue_cache::watched::trigger_provider_issue_poll
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -143,6 +174,104 @@ fn migrations() -> Vec<Migration> {
                     WHERE author_avatar_url IS NULL
                 );
             "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 4,
+            description: "create_issue_cache",
+            sql: r#"
+            CREATE TABLE IF NOT EXISTS accessible_issue_sources (
+                provider_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                web_url TEXT,
+                updated_at TEXT,
+                last_seen_at INTEGER NOT NULL,
+                PRIMARY KEY(provider_id, source_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_accessible_issue_sources_provider_id
+                ON accessible_issue_sources(provider_id);
+            CREATE INDEX IF NOT EXISTS idx_accessible_issue_sources_display_name
+                ON accessible_issue_sources(display_name);
+
+            CREATE TABLE IF NOT EXISTS watched_issue_sources (
+                id TEXT PRIMARY KEY NOT NULL,
+                provider_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                web_url TEXT,
+                issues_etag TEXT,
+                last_checked_at INTEGER,
+                created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                UNIQUE(provider_id, source_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_watched_issue_sources_provider_id
+                ON watched_issue_sources(provider_id);
+            CREATE INDEX IF NOT EXISTS idx_watched_issue_sources_display_name
+                ON watched_issue_sources(display_name);
+
+            CREATE TABLE IF NOT EXISTS issue_statuses (
+                id TEXT PRIMARY KEY NOT NULL,
+                source_watch_id TEXT NOT NULL,
+                status_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                category TEXT,
+                position INTEGER NOT NULL,
+                FOREIGN KEY(source_watch_id) REFERENCES watched_issue_sources(id) ON DELETE CASCADE,
+                UNIQUE(source_watch_id, status_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_issue_statuses_source_watch_id
+                ON issue_statuses(source_watch_id);
+
+            CREATE TABLE IF NOT EXISTS issues (
+                id TEXT PRIMARY KEY NOT NULL,
+                source_watch_id TEXT NOT NULL,
+                key TEXT NOT NULL,
+                title TEXT NOT NULL,
+                status_id TEXT NOT NULL,
+                status_name TEXT NOT NULL,
+                author_name TEXT,
+                author_avatar_url TEXT,
+                assignee_name TEXT,
+                assignee_avatar_url TEXT,
+                updated_at TEXT NOT NULL,
+                html_url TEXT NOT NULL,
+                created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+                FOREIGN KEY(source_watch_id) REFERENCES watched_issue_sources(id) ON DELETE CASCADE,
+                UNIQUE(source_watch_id, key)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_issues_source_watch_id
+                ON issues(source_watch_id);
+            CREATE INDEX IF NOT EXISTS idx_issues_source_status
+                ON issues(source_watch_id, status_id);
+            CREATE INDEX IF NOT EXISTS idx_issues_updated_at
+                ON issues(updated_at);
+        "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "add_issue_column_visibility",
+            sql: r#"
+            CREATE TABLE IF NOT EXISTS hidden_issue_statuses (
+                source_watch_id TEXT NOT NULL,
+                status_id TEXT NOT NULL,
+                PRIMARY KEY(source_watch_id, status_id),
+                FOREIGN KEY(source_watch_id) REFERENCES watched_issue_sources(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_hidden_issue_statuses_source_watch_id
+                ON hidden_issue_statuses(source_watch_id);
+        "#,
             kind: MigrationKind::Up,
         },
     ]

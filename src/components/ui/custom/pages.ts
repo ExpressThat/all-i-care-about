@@ -1,1 +1,1 @@
-export type AppPage = "home" | "repositories";
+export type AppPage = "home" | "repositories" | "issues";

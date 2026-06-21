@@ -7,6 +7,10 @@ pub async fn list_cached_pull_requests(
     app: AppHandle,
     repository_id: Option<String>,
 ) -> Result<Vec<CachedPullRequest>, String> {
+    log::debug!(
+        "list_cached_pull_requests request received: repository_id={:?}",
+        repository_id
+    );
     let pool = db_pool(&app).await?;
     let rows = if let Some(repository_id) = repository_id {
         sqlx::query(
@@ -33,5 +37,11 @@ pub async fn list_cached_pull_requests(
     }
     .map_err(|error| format!("Failed to list cached pull requests: {error}"))?;
 
-    rows.into_iter().map(row_to_cached_pull_request).collect()
+    let row_count = rows.len();
+    let pull_requests = rows
+        .into_iter()
+        .map(row_to_cached_pull_request)
+        .collect::<Result<Vec<_>, _>>()?;
+    log::info!("list_cached_pull_requests completed: results={row_count}");
+    Ok(pull_requests)
 }

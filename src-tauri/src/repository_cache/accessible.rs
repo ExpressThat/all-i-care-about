@@ -11,6 +11,11 @@ pub async fn list_accessible_repositories(
     provider_id: String,
     search: Option<String>,
 ) -> Result<Vec<AccessibleRepository>, String> {
+    log::debug!(
+        "list_accessible_repositories request received: provider_id={}, search={:?}",
+        provider_id,
+        search
+    );
     let pool = db_pool(&app).await?;
     let search = search.unwrap_or_default();
     let rows = if search.trim().is_empty() {
@@ -23,7 +28,7 @@ pub async fn list_accessible_repositories(
             LIMIT 200
             "#,
         )
-        .bind(provider_id)
+        .bind(&provider_id)
         .fetch_all(&pool)
         .await
     } else {
@@ -37,14 +42,24 @@ pub async fn list_accessible_repositories(
             LIMIT 200
             "#,
         )
-        .bind(provider_id)
+        .bind(&provider_id)
         .bind(pattern)
         .fetch_all(&pool)
         .await
     }
     .map_err(|error| format!("Failed to list accessible repositories: {error}"))?;
 
-    rows.into_iter().map(row_to_accessible_repository).collect()
+    let row_count = rows.len();
+    let repositories = rows
+        .into_iter()
+        .map(row_to_accessible_repository)
+        .collect::<Result<Vec<_>, _>>()?;
+    log::info!(
+        "list_accessible_repositories completed: provider_id={}, results={}",
+        provider_id,
+        row_count
+    );
+    Ok(repositories)
 }
 
 #[tauri::command]
@@ -52,6 +67,7 @@ pub async fn refresh_accessible_repositories(
     app: AppHandle,
     provider_id: String,
 ) -> Result<Vec<AccessibleRepository>, String> {
+    log::info!("refresh_accessible_repositories request received: provider_id={provider_id}");
     let pool = db_pool(&app).await?;
     let provider_type = get_provider_type(&app, &provider_id)?;
     let context = ProviderContext {
@@ -61,6 +77,12 @@ pub async fn refresh_accessible_repositories(
         provider_type,
     };
     let repositories = list_provider_repositories(&context).await?;
+    let provider_count = repositories.len();
+    log::info!(
+        "refresh_accessible_repositories fetched provider repositories: provider_id={}, count={}",
+        provider_id,
+        provider_count
+    );
     let seen_at = now_seconds();
 
     for repository in repositories {
@@ -92,5 +114,12 @@ pub async fn refresh_accessible_repositories(
         .map_err(|error| format!("Failed to cache accessible repository: {error}"))?;
     }
 
-    list_accessible_repositories(app, provider_id, None).await
+    let cached = list_accessible_repositories(app, provider_id.clone(), None).await?;
+    log::info!(
+        "refresh_accessible_repositories completed: provider_id={}, fetched={}, cached_results={}",
+        provider_id,
+        provider_count,
+        cached.len()
+    );
+    Ok(cached)
 }

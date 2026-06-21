@@ -35,3 +35,42 @@ pub struct ProviderPullRequestPage {
     pub not_modified: bool,
     pub pull_requests: Vec<ProviderPullRequest>,
 }
+
+#[derive(Clone)]
+pub struct ProviderIssueSource {
+    pub id: String,
+    pub key: String,
+    pub name: String,
+    pub display_name: String,
+    pub web_url: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct ProviderIssueStatus {
+    pub id: String,
+    pub name: String,
+    pub category: Option<String>,
+    pub position: i64,
+}
+
+pub struct ProviderIssue {
+    pub id: String,
+    pub key: String,
+    pub title: String,
+    pub status_id: String,
+    pub status_name: String,
+    pub author_name: Option<String>,
+    pub author_avatar_url: Option<String>,
+    pub assignee_name: Option<String>,
+    pub assignee_avatar_url: Option<String>,
+    pub updated_at: String,
+    pub html_url: String,
+}
+
+pub struct ProviderIssuePage {
+    pub etag: Option<String>,
+    pub failed: bool,
+    pub not_modified: bool,
+    pub issues: Vec<ProviderIssue>,
+}

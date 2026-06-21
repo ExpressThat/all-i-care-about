@@ -16,16 +16,19 @@ pub async fn db_pool(app: &AppHandle) -> Result<Pool<Sqlite>, String> {
     fs::create_dir_all(&db_path)
         .map_err(|error| format!("Failed to create app config directory: {error}"))?;
     db_path.push(DB_FILE_NAME);
+    log::debug!("Opening cache database: path={}", db_path.display());
 
     let options = SqliteConnectOptions::new()
         .filename(db_path)
         .create_if_missing(true);
 
-    SqlitePoolOptions::new()
+    let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(options)
         .await
-        .map_err(|error| format!("Failed to open repository cache database: {error}"))
+        .map_err(|error| format!("Failed to open repository cache database: {error}"))?;
+    log::debug!("Cache database opened");
+    Ok(pool)
 }
 
 pub async fn load_watched_repository(
@@ -34,6 +37,12 @@ pub async fn load_watched_repository(
     owner: &str,
     name: &str,
 ) -> Result<WatchedRepository, String> {
+    log::debug!(
+        "Loading watched repository: provider_id={}, repository={}/{}",
+        provider_id,
+        owner,
+        name
+    );
     let row = sqlx::query(
         r#"
         SELECT id, provider_id, owner, name, full_name, is_active, pulls_etag, last_checked_at

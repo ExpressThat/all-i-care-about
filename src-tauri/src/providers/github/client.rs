@@ -31,6 +31,12 @@ impl<'a> GitHubClient<'a> {
 
     pub async fn get(&self, path_and_query: &str, etag: Option<&str>) -> Result<Response, String> {
         let url = format!("{GITHUB_API_ORIGIN}{path_and_query}");
+        log::debug!(
+            "GitHub GET request prepared: provider_id={}, path={}, has_etag={}",
+            self.provider_id,
+            path_and_query,
+            etag.is_some()
+        );
         send_provider_request(
             self.app,
             self.pool,

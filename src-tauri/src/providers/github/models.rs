@@ -31,3 +31,25 @@ pub struct GitHubPullRequest {
     pub html_url: String,
     pub user: Option<GitHubPullRequestUser>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct GitHubIssueUser {
+    pub login: String,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GitHubIssuePullRequestMarker {}
+
+#[derive(Debug, Deserialize)]
+pub struct GitHubIssue {
+    pub id: i64,
+    pub number: i64,
+    pub title: String,
+    pub state: String,
+    pub updated_at: String,
+    pub html_url: String,
+    pub user: Option<GitHubIssueUser>,
+    pub assignee: Option<GitHubIssueUser>,
+    pub pull_request: Option<GitHubIssuePullRequestMarker>,
+}

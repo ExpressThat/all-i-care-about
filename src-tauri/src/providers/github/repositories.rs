@@ -5,6 +5,7 @@ use crate::providers::types::ProviderRepository;
 pub async fn list_accessible_repositories(
     client: &GitHubClient<'_>,
 ) -> Result<Vec<ProviderRepository>, String> {
+    log::debug!("GitHub accessible repositories fetch started");
     let mut page = 1;
     let mut repositories = Vec::new();
 
@@ -18,6 +19,7 @@ pub async fn list_accessible_repositories(
             .await
             .map_err(|error| format!("Failed to parse GitHub repositories: {error}"))?;
         let count = github_repositories.len();
+        log::debug!("GitHub accessible repositories page fetched: page={page}, count={count}");
 
         repositories.extend(github_repositories.into_iter().map(map_repository));
 
@@ -27,6 +29,10 @@ pub async fn list_accessible_repositories(
         page += 1;
     }
 
+    log::info!(
+        "GitHub accessible repositories fetch completed: results={}",
+        repositories.len()
+    );
     Ok(repositories)
 }
 

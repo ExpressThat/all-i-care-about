@@ -8,11 +8,17 @@ pub async fn list_open_pull_requests(
     repo: &str,
     etag: Option<&str>,
 ) -> Result<ProviderPullRequestPage, String> {
-    let path =
-        format!("/repos/{owner}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100");
+    log::debug!(
+        "GitHub pull requests fetch started: repository={}/{}, has_etag={}",
+        owner,
+        repo,
+        etag.is_some()
+    );
+    let path = format!("/repos/{owner}/{repo}/pulls?&sort=updated&direction=desc&per_page=100");
     let response = client.get(&path, etag).await?;
 
     if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+        log::info!("GitHub pull requests not modified: repository={owner}/{repo}");
         return Ok(ProviderPullRequestPage {
             etag: None,
             failed: false,
@@ -22,6 +28,12 @@ pub async fn list_open_pull_requests(
     }
 
     if !response.status().is_success() {
+        log::error!(
+            "GitHub pull requests request returned unsuccessful status: repository={}/{}, status={}",
+            owner,
+            repo,
+            response.status()
+        );
         return Ok(ProviderPullRequestPage {
             etag: None,
             failed: true,
@@ -39,7 +51,15 @@ pub async fn list_open_pull_requests(
         .json()
         .await
         .map_err(|error| format!("Failed to parse GitHub pull requests: {error}"))?;
+    let count = pull_requests.len();
 
+    log::info!(
+        "GitHub pull requests fetch completed: repository={}/{}, results={}, has_etag={}",
+        owner,
+        repo,
+        count,
+        etag.is_some()
+    );
     Ok(ProviderPullRequestPage {
         etag,
         failed: false,

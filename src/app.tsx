@@ -3,6 +3,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner";
 import { HomePage } from "@/components/home/HomePage";
+import { IssuesPage } from "@/components/issues/IssuesPage";
 import { RepositoriesPage } from "@/components/repositories/RepositoriesPage";
 import { ThemeController } from "@/lib/settings/theme/ThemeController";
 import Layout from "./components/ui/custom/layout";
@@ -38,7 +39,13 @@ function App() {
     <>
       <ThemeController />
       <Layout activePage={activePage} onPageChange={setActivePage}>
-        {activePage === "repositories" ? <RepositoriesPage /> : <HomePage />}
+        {activePage === "repositories" ? (
+          <RepositoriesPage />
+        ) : activePage === "issues" ? (
+          <IssuesPage />
+        ) : (
+          <HomePage />
+        )}
       </Layout>
       <Toaster />
     </>

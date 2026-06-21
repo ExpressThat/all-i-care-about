@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Cog, Home, GitPullRequest } from "lucide-react";
+import { Cog, GitPullRequest, Home, Ticket } from "lucide-react";
 import type { AppPage } from "./pages";
 
 export function AppSidebar({
@@ -46,6 +46,16 @@ export function AppSidebar({
               >
                 <GitPullRequest aria-hidden="true" />
                 <span>Repositories</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={activePage === "issues"}
+                onClick={() => onPageChange("issues")}
+                type="button"
+              >
+                <Ticket aria-hidden="true" />
+                <span>Issues</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

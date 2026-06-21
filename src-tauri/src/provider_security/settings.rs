@@ -68,7 +68,9 @@ pub fn default_settings() -> Settings {
 
 pub fn read_settings(app: &AppHandle) -> Result<Settings, String> {
     let settings_path = settings_path(app)?;
+    log::debug!("Reading settings: path={}", settings_path.display());
     if !settings_path.exists() {
+        log::info!("Settings file does not exist, using defaults");
         return Ok(default_settings());
     }
 
@@ -78,14 +80,29 @@ pub fn read_settings(app: &AppHandle) -> Result<Settings, String> {
         .map_err(|error| format!("Failed to parse settings: {error}"))?;
 
     if !matches!(settings.theme.as_str(), "System" | "Light" | "Dark") {
+        log::error!(
+            "Settings contained invalid theme, resetting to System: theme={}",
+            settings.theme
+        );
         settings.theme = "System".to_string();
     }
 
+    log::debug!(
+        "Read settings: providers={}, theme={}",
+        settings.providers.len(),
+        settings.theme
+    );
     Ok(settings)
 }
 
 pub fn write_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
     let settings_path = settings_path(app)?;
+    log::debug!(
+        "Writing settings: path={}, providers={}, theme={}",
+        settings_path.display(),
+        settings.providers.len(),
+        settings.theme
+    );
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|error| format!("Failed to create settings directory: {error}"))?;
@@ -94,7 +111,9 @@ pub fn write_settings(app: &AppHandle, settings: &Settings) -> Result<(), String
     let contents = serde_json::to_string_pretty(settings)
         .map_err(|error| format!("Failed to serialize settings: {error}"))?;
     fs::write(&settings_path, contents)
-        .map_err(|error| format!("Failed to write settings: {error}"))
+        .map_err(|error| format!("Failed to write settings: {error}"))?;
+    log::debug!("Wrote settings: path={}", settings_path.display());
+    Ok(())
 }
 
 pub fn save_provider_settings(
@@ -102,6 +121,14 @@ pub fn save_provider_settings(
     request: SaveProviderRequest,
 ) -> Result<Settings, String> {
     let mut provider = request.provider;
+    let provider_id = provider.id.clone();
+    log::debug!(
+        "Saving provider settings: provider_id={}, provider_type={:?}, allowed_origins={}, secret_paths={}",
+        provider_id,
+        provider.provider_type,
+        request.allowed_origins.len(),
+        request.secret_setting_paths.len()
+    );
     let mut settings = read_settings(app)?;
     let allowed_origins = normalize_origins(&request.allowed_origins)?;
     let secret_setting_paths = normalize_secret_setting_paths(&request.secret_setting_paths)?;
@@ -115,6 +142,12 @@ pub fn save_provider_settings(
     let preserve_existing_secrets = previous_security
         .as_ref()
         .is_some_and(|previous_security| previous_security.allowed_origins == allowed_origins);
+    log::debug!(
+        "Provider security evaluated: provider_id={}, existing_provider={}, preserve_existing_secrets={}",
+        provider.id,
+        existing_provider.is_some(),
+        preserve_existing_secrets
+    );
 
     provider.settings = secure_provider_settings(
         app,
@@ -145,15 +178,27 @@ pub fn save_provider_settings(
     }
 
     write_settings(app, &settings)?;
+    log::info!(
+        "Saved provider settings: provider_id={}, providers={}",
+        provider_id,
+        settings.providers.len()
+    );
     Ok(settings)
 }
 
 pub fn remove_provider_settings(app: &AppHandle, provider_id: &str) -> Result<Settings, String> {
     let mut settings = read_settings(app)?;
+    let before_count = settings.providers.len();
     settings
         .providers
         .retain(|provider| provider.id != provider_id);
     write_settings(app, &settings)?;
+    log::info!(
+        "Removed provider settings: provider_id={}, providers_before={}, providers_after={}",
+        provider_id,
+        before_count,
+        settings.providers.len()
+    );
     Ok(settings)
 }
 
