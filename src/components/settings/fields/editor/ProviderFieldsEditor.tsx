@@ -3,23 +3,23 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
-import type { ProviderField } from "@/lib/providers/providerTypes"
+} from "@/components/ui/accordion";
+import type { ProviderField } from "@/lib/providers/providerTypes";
 import {
   type ProviderFieldFormValue,
   getFieldFormKey,
-} from "@/lib/providers/providerSettings"
-import { BooleanField } from "../boolean/BooleanField"
-import { DateField } from "../date/DateField"
-import { DateTimeField } from "../datetime/DateTimeField"
-import { NumberField } from "../number/NumberField"
-import { SelectField } from "../select/SelectField"
-import { getFieldLayoutClassName } from "../shared/settings"
-import { TextField } from "../text/TextField"
-import { stringFieldValue } from "../text/helpers"
-import { TextareaField } from "../textarea/TextareaField"
-import { TimeField } from "../time/TimeField"
-import { numberFieldValue } from "../time/helpers"
+} from "@/lib/providers/providerSettings";
+import { BooleanField } from "../boolean/BooleanField";
+import { DateField } from "../date/DateField";
+import { DateTimeField } from "../datetime/DateTimeField";
+import { NumberField } from "../number/NumberField";
+import { SelectField } from "../select/SelectField";
+import { getFieldLayoutClassName } from "../shared/settings";
+import { TextField } from "../text/TextField";
+import { stringFieldValue } from "../text/helpers";
+import { TextareaField } from "../textarea/TextareaField";
+import { TimeField } from "../time/TimeField";
+import { numberFieldValue } from "../time/helpers";
 
 export function ProviderFieldsEditor({
   fieldValues,
@@ -29,21 +29,21 @@ export function ProviderFieldsEditor({
   path,
   revealedFields,
 }: {
-  fieldValues: Record<string, ProviderFieldFormValue>
-  fields: readonly ProviderField[]
-  onChange: (fieldKey: string, value: ProviderFieldFormValue) => void
-  onToggleReveal: (fieldKey: string) => void
-  path: string[]
-  revealedFields: Set<string>
+  fieldValues: Record<string, ProviderFieldFormValue>;
+  fields: readonly ProviderField[];
+  onChange: (fieldKey: string, value: ProviderFieldFormValue) => void;
+  onToggleReveal: (fieldKey: string) => void;
+  path: string[];
+  revealedFields: Set<string>;
 }) {
   const defaultOpenGroups = fields
     .filter((field) => field.type === "group" && field.defaultOpen)
-    .map((field) => getFieldFormKey(path, field.key))
+    .map((field) => getFieldFormKey(path, field.key));
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {fields.map((field) => {
-        const fieldKey = getFieldFormKey(path, field.key)
+        const fieldKey = getFieldFormKey(path, field.key);
 
         if (field.type === "group") {
           return (
@@ -78,7 +78,7 @@ export function ProviderFieldsEditor({
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-          )
+          );
         }
 
         return (
@@ -92,10 +92,10 @@ export function ProviderFieldsEditor({
             onToggleReveal={() => onToggleReveal(fieldKey)}
             value={fieldValues[fieldKey]}
           />
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 function ProviderFieldInput({
@@ -107,16 +107,16 @@ function ProviderFieldInput({
   onToggleReveal,
   value,
 }: {
-  className?: string
-  field: ProviderField
-  fieldKey: string
-  isRevealed: boolean
-  onChange: (value: ProviderFieldFormValue) => void
-  onToggleReveal: () => void
-  value: ProviderFieldFormValue | undefined
+  className?: string;
+  field: ProviderField;
+  fieldKey: string;
+  isRevealed: boolean;
+  onChange: (value: ProviderFieldFormValue) => void;
+  onToggleReveal: () => void;
+  value: ProviderFieldFormValue | undefined;
 }) {
-  const fieldId = `provider-field-${fieldKey.split(".").join("-")}`
-  const descriptionId = `${fieldId}-description`
+  const fieldId = `provider-field-${fieldKey.split(".").join("-")}`;
+  const descriptionId = `${fieldId}-description`;
 
   return (
     <div className={`grid gap-1.5 ${className ?? ""}`}>
@@ -138,7 +138,7 @@ function ProviderFieldInput({
         </span>
       ) : null}
     </div>
-  )
+  );
 }
 
 function ProviderFieldControl({
@@ -150,13 +150,13 @@ function ProviderFieldControl({
   onToggleReveal,
   value,
 }: {
-  descriptionId?: string
-  field: ProviderField
-  fieldId: string
-  isRevealed: boolean
-  onChange: (value: ProviderFieldFormValue) => void
-  onToggleReveal: () => void
-  value: ProviderFieldFormValue | undefined
+  descriptionId?: string;
+  field: ProviderField;
+  fieldId: string;
+  isRevealed: boolean;
+  onChange: (value: ProviderFieldFormValue) => void;
+  onToggleReveal: () => void;
+  value: ProviderFieldFormValue | undefined;
 }) {
   switch (field.type) {
     case "textarea":
@@ -168,7 +168,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={value}
         />
-      )
+      );
     case "boolean":
       return (
         <BooleanField
@@ -177,7 +177,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={value}
         />
-      )
+      );
     case "select":
       return (
         <SelectField
@@ -187,7 +187,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={stringFieldValue(value)}
         />
-      )
+      );
     case "date":
       return (
         <DateField
@@ -197,7 +197,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={numberFieldValue(value)}
         />
-      )
+      );
     case "time":
       return (
         <TimeField
@@ -207,7 +207,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={value}
         />
-      )
+      );
     case "datetime":
       return (
         <DateTimeField
@@ -217,7 +217,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={numberFieldValue(value)}
         />
-      )
+      );
     case "number":
       return (
         <NumberField
@@ -227,7 +227,7 @@ function ProviderFieldControl({
           onChange={onChange}
           value={value}
         />
-      )
+      );
     case "email":
     case "secret":
     case "text":
@@ -243,6 +243,6 @@ function ProviderFieldControl({
           showRevealButton={field.type === "secret"}
           value={value}
         />
-      )
+      );
   }
 }

@@ -1,7 +1,7 @@
-import { Check } from "lucide-react"
-import type { ProviderCapability } from "@/lib/providers/capabilities"
-import { getProviderCapabilityDefinition } from "@/lib/providers/capabilities"
-import type { ProviderPlugin } from "@/lib/providers/providerTypes"
+import { Check } from "lucide-react";
+import type { ProviderCapability } from "@/lib/providers/capabilities";
+import { getProviderCapabilityDefinition } from "@/lib/providers/capabilities";
+import type { ProviderPlugin } from "@/lib/providers/providerTypes";
 
 export function ProviderOption({
   disabled = false,
@@ -9,10 +9,10 @@ export function ProviderOption({
   onSelect,
   plugin,
 }: {
-  disabled?: boolean
-  isSelected: boolean
-  onSelect: () => void
-  plugin: ProviderPlugin
+  disabled?: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+  plugin: ProviderPlugin;
 }) {
   return (
     <button
@@ -35,7 +35,7 @@ export function ProviderOption({
         </span>
       </span>
     </button>
-  )
+  );
 }
 
 export function CapabilityOption({
@@ -43,11 +43,11 @@ export function CapabilityOption({
   isSelected,
   onToggle,
 }: {
-  capability: ProviderCapability
-  isSelected: boolean
-  onToggle: () => void
+  capability: ProviderCapability;
+  isSelected: boolean;
+  onToggle: () => void;
 }) {
-  const definition = getProviderCapabilityDefinition(capability)
+  const definition = getProviderCapabilityDefinition(capability);
 
   return (
     <button
@@ -78,5 +78,5 @@ export function CapabilityOption({
         ) : null}
       </span>
     </button>
-  )
+  );
 }

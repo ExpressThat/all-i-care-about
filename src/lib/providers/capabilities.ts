@@ -1,7 +1,7 @@
-import type { ProviderPlugin } from "./providerTypes"
+import type { ProviderPlugin } from "./providerTypes";
 
 /** Provider domain that a capability belongs to. */
-export type ProviderKind = "git" | "issue"
+export type ProviderKind = "git" | "issue";
 
 export const providerCapabilityDefinitions = [
   {
@@ -18,49 +18,51 @@ export const providerCapabilityDefinitions = [
   },
 ] as const satisfies readonly {
   /** Stable short name persisted on provider instances. */
-  shortName: string
+  shortName: string;
   /** Provider domain required for a provider to expose this capability. */
-  providerKind: ProviderKind
+  providerKind: ProviderKind;
   /** Human-readable name shown in provider setup UI. */
-  displayName: string
+  displayName: string;
   /** Short explanation of what the capability returns. */
-  description: string
-}[]
+  description: string;
+}[];
 
 /** Stable short name for a provider capability contract. */
 export type ProviderCapability =
-  (typeof providerCapabilityDefinitions)[number]["shortName"]
+  (typeof providerCapabilityDefinitions)[number]["shortName"];
 
 /** Human-facing metadata for a provider capability. */
 export type ProviderCapabilityDefinition =
-  (typeof providerCapabilityDefinitions)[number]
+  (typeof providerCapabilityDefinitions)[number];
 
 /** Capabilities whose definitions belong to one provider kind. */
-export type ProviderCapabilityForKind<Kind extends ProviderKind> =
-  Extract<ProviderCapabilityDefinition, { providerKind: Kind }>["shortName"]
+export type ProviderCapabilityForKind<Kind extends ProviderKind> = Extract<
+  ProviderCapabilityDefinition,
+  { providerKind: Kind }
+>["shortName"];
 
 /** Capabilities whose definitions belong to one of several provider kinds. */
 export type ProviderCapabilityForKinds<Kinds extends readonly ProviderKind[]> =
-  ProviderCapabilityForKind<Kinds[number]>
+  ProviderCapabilityForKind<Kinds[number]>;
 
 const providerCapabilities = providerCapabilityDefinitions.map(
   (capability) => capability.shortName,
-)
+);
 
 export function isProviderCapability(
   value: unknown,
 ): value is ProviderCapability {
-  return providerCapabilities.includes(value as ProviderCapability)
+  return providerCapabilities.includes(value as ProviderCapability);
 }
 
 export function normalizeProviderCapability(
   value: unknown,
 ): ProviderCapability | null {
   if (isProviderCapability(value)) {
-    return value
+    return value;
   }
 
-  return null
+  return null;
 }
 
 export function getProviderCapabilityDefinition(
@@ -70,7 +72,7 @@ export function getProviderCapabilityDefinition(
     providerCapabilityDefinitions.find(
       (definition) => definition.shortName === capability,
     ) ?? null
-  )
+  );
 }
 
 export function getCapabilitiesForProviderKinds(
@@ -78,15 +80,15 @@ export function getCapabilitiesForProviderKinds(
 ) {
   return providerCapabilityDefinitions
     .filter((definition) => providerKinds.includes(definition.providerKind))
-    .map((definition) => definition.shortName)
+    .map((definition) => definition.shortName);
 }
 
 export function isCapabilityAllowedForProvider(
   plugin: ProviderPlugin,
   capability: ProviderCapability,
 ) {
-  const definition = getProviderCapabilityDefinition(capability)
+  const definition = getProviderCapabilityDefinition(capability);
   return Boolean(
     definition && plugin.providerKinds.includes(definition.providerKind),
-  )
+  );
 }

@@ -1,69 +1,71 @@
-import { useEffect, useMemo, useState } from "react"
-import { listen } from "@tauri-apps/api/event"
-import { GitPullRequest, Settings2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useMemo, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { GitPullRequest, Settings2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   listCachedPullRequests,
   listWatchedRepositories,
   type CachedPullRequest,
   type WatchedRepository,
-} from "@/lib/repositories/repositoryCache"
-import { useSetting } from "@/lib/settings/settingsStore"
-import { ManageWatchedRepositoriesDialog } from "./ManageWatchedRepositoriesDialog"
-import { RepositoryColumn } from "./RepositoryColumn"
-import { RepositorySkeletons } from "./RepositorySkeletons"
-import { isGitPrProvider } from "./repositoryUtils"
+} from "@/lib/repositories/repositoryCache";
+import { useSetting } from "@/lib/settings/settingsStore";
+import { ManageWatchedRepositoriesDialog } from "./ManageWatchedRepositoriesDialog";
+import { RepositoryColumn } from "./RepositoryColumn";
+import { RepositorySkeletons } from "./RepositorySkeletons";
+import { isGitPrProvider } from "./repositoryUtils";
 
 export function RepositoriesPage() {
-  const providers = useSetting("Providers")
-  const gitProviders = providers.filter(isGitPrProvider)
-  const [manageOpen, setManageOpen] = useState(false)
-  const [watchedRepositories, setWatchedRepositories] = useState<WatchedRepository[]>([])
-  const [pullRequests, setPullRequests] = useState<CachedPullRequest[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const providers = useSetting("Providers");
+  const gitProviders = providers.filter(isGitPrProvider);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [watchedRepositories, setWatchedRepositories] = useState<
+    WatchedRepository[]
+  >([]);
+  const [pullRequests, setPullRequests] = useState<CachedPullRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void load()
-  }, [])
+    void load();
+  }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined
+    let unsubscribe: (() => void) | undefined;
 
     void listen("provider-pr-cache-updated", () => {
-      void load()
+      void load();
     }).then((nextUnsubscribe) => {
-      unsubscribe = nextUnsubscribe
-    })
+      unsubscribe = nextUnsubscribe;
+    });
 
     return () => {
-      unsubscribe?.()
-    }
-  }, [])
+      unsubscribe?.();
+    };
+  }, []);
 
   const pullRequestsByRepository = useMemo(() => {
-    const grouped = new Map<string, CachedPullRequest[]>()
+    const grouped = new Map<string, CachedPullRequest[]>();
     for (const pullRequest of pullRequests) {
-      const group = grouped.get(pullRequest.repositoryId) ?? []
-      group.push(pullRequest)
-      grouped.set(pullRequest.repositoryId, group)
+      const group = grouped.get(pullRequest.repositoryId) ?? [];
+      group.push(pullRequest);
+      grouped.set(pullRequest.repositoryId, group);
     }
-    return grouped
-  }, [pullRequests])
+    return grouped;
+  }, [pullRequests]);
 
   async function load() {
-    setError(null)
+    setError(null);
     try {
       const [repositories, prs] = await Promise.all([
         listWatchedRepositories(),
         listCachedPullRequests(),
-      ])
-      setWatchedRepositories(repositories)
-      setPullRequests(prs)
+      ]);
+      setWatchedRepositories(repositories);
+      setPullRequests(prs);
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -129,5 +131,5 @@ export function RepositoriesPage() {
         open={manageOpen}
       />
     </div>
-  )
+  );
 }

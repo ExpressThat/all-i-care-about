@@ -1,6 +1,6 @@
-import { Moon, Sun, SunMoon } from "lucide-react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { Moon, Sun, SunMoon } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,24 +9,25 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import type { AppTheme } from "@/lib/settings/Settings"
-import { setSetting, useSetting } from "@/lib/settings/settingsStore"
+} from "@/components/ui/dropdown-menu";
+import type { AppTheme } from "@/lib/settings/Settings";
+import { setSetting, useSetting } from "@/lib/settings/settingsStore";
 
 const themeOptions: Array<{
-  icon: typeof Sun
-  label: string
-  value: AppTheme
+  icon: typeof Sun;
+  label: string;
+  value: AppTheme;
 }> = [
   { icon: Sun, label: "Light", value: "Light" },
   { icon: Moon, label: "Dark", value: "Dark" },
   { icon: SunMoon, label: "System", value: "System" },
-]
+];
 
 export function ThemeSelector() {
-  const theme = useSetting("Theme")
-  const [open, setOpen] = useState(false)
-  const Icon = themeOptions.find((option) => option.value === theme)?.icon ?? SunMoon
+  const theme = useSetting("Theme");
+  const [open, setOpen] = useState(false);
+  const Icon =
+    themeOptions.find((option) => option.value === theme)?.icon ?? SunMoon;
 
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
@@ -42,8 +43,8 @@ export function ThemeSelector() {
           <DropdownMenuRadioGroup
             value={theme}
             onValueChange={(value) => {
-              void setSetting("Theme", value as AppTheme)
-              setOpen(false)
+              void setSetting("Theme", value as AppTheme);
+              setOpen(false);
             }}
           >
             {themeOptions.map((option) => (
@@ -56,5 +57,5 @@ export function ThemeSelector() {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

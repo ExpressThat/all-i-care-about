@@ -1,22 +1,22 @@
 import {
   getNestedProviderSettings,
   isEmptyFormValue,
-} from "@/components/settings/fields"
-import type { ProviderCapability } from "@/lib/providers/capabilities"
+} from "@/components/settings/fields";
+import type { ProviderCapability } from "@/lib/providers/capabilities";
 import {
   getFieldFormKey,
   type ProviderFieldFormValue,
-} from "@/lib/providers/providerSettings"
-import { getProviderAllowedOrigins } from "@/lib/providers/providerSettings"
+} from "@/lib/providers/providerSettings";
+import { getProviderAllowedOrigins } from "@/lib/providers/providerSettings";
 import type {
   ProviderField,
   ProviderInstance,
   ProviderPlugin,
   ProviderSettingValue,
-} from "@/lib/providers/providerTypes"
+} from "@/lib/providers/providerTypes";
 
 export function createProviderId() {
-  return crypto.randomUUID?.() ?? `provider-${Date.now()}`
+  return crypto.randomUUID?.() ?? `provider-${Date.now()}`;
 }
 
 export function toggleCapability(
@@ -24,24 +24,24 @@ export function toggleCapability(
   capability: ProviderCapability,
 ) {
   if (capabilities.includes(capability)) {
-    return capabilities.filter((current) => current !== capability)
+    return capabilities.filter((current) => current !== capability);
   }
 
-  return [...capabilities, capability]
+  return [...capabilities, capability];
 }
 
 export function toggleRevealedField(fields: Set<string>, fieldKey: string) {
-  const nextFields = new Set(fields)
+  const nextFields = new Set(fields);
   if (nextFields.has(fieldKey)) {
-    nextFields.delete(fieldKey)
+    nextFields.delete(fieldKey);
   } else {
-    nextFields.add(fieldKey)
+    nextFields.add(fieldKey);
   }
-  return nextFields
+  return nextFields;
 }
 
 export function matchesSearch(value: string, search: string) {
-  return value.toLowerCase().includes(search.trim().toLowerCase())
+  return value.toLowerCase().includes(search.trim().toLowerCase());
 }
 
 export function shouldWarnBeforeProviderSave({
@@ -50,23 +50,23 @@ export function shouldWarnBeforeProviderSave({
   plugin,
   provider,
 }: {
-  editingProvider: ProviderInstance | null
-  fieldValues: Record<string, ProviderFieldFormValue>
-  plugin: ProviderPlugin
-  provider: ProviderInstance
+  editingProvider: ProviderInstance | null;
+  fieldValues: Record<string, ProviderFieldFormValue>;
+  plugin: ProviderPlugin;
+  provider: ProviderInstance;
 }) {
   if (!editingProvider) {
-    return false
+    return false;
   }
 
   const previousOrigins = getProviderAllowedOrigins(
     plugin,
     editingProvider.settings,
-  )
-  const nextOrigins = getProviderAllowedOrigins(plugin, provider.settings)
+  );
+  const nextOrigins = getProviderAllowedOrigins(plugin, provider.settings);
 
   if (previousOrigins.join("\n") === nextOrigins.join("\n")) {
-    return false
+    return false;
   }
 
   return hasExistingSecretWithoutReplacement({
@@ -74,7 +74,7 @@ export function shouldWarnBeforeProviderSave({
     fields: plugin.fields,
     settings: editingProvider.settings,
     path: [],
-  })
+  });
 }
 
 function hasExistingSecretWithoutReplacement({
@@ -83,10 +83,10 @@ function hasExistingSecretWithoutReplacement({
   path,
   settings,
 }: {
-  fieldValues: Record<string, ProviderFieldFormValue>
-  fields: readonly ProviderField[]
-  path: string[]
-  settings: Record<string, ProviderSettingValue> | undefined
+  fieldValues: Record<string, ProviderFieldFormValue>;
+  fields: readonly ProviderField[];
+  path: string[];
+  settings: Record<string, ProviderSettingValue> | undefined;
 }) {
   for (const field of fields) {
     if (field.type === "group") {
@@ -98,25 +98,25 @@ function hasExistingSecretWithoutReplacement({
           settings: getNestedProviderSettings(settings, field.key),
         })
       ) {
-        return true
+        return true;
       }
-      continue
+      continue;
     }
 
     if (!field.secret) {
-      continue
+      continue;
     }
 
     const hasExistingSecret =
-      typeof settings?.[field.key] === "string" && settings[field.key] !== ""
+      typeof settings?.[field.key] === "string" && settings[field.key] !== "";
     const hasReplacement = !isEmptyFormValue(
       fieldValues[getFieldFormKey(path, field.key)],
-    )
+    );
 
     if (hasExistingSecret && !hasReplacement) {
-      return true
+      return true;
     }
   }
 
-  return false
+  return false;
 }

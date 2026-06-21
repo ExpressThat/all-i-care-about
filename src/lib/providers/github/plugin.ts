@@ -1,6 +1,6 @@
-import { GitPullRequest } from "lucide-react"
-import type { ProviderPlugin } from "../providerTypes"
-import { githubProviderCapabilities } from "./capabilities"
+import { GitPullRequest } from "lucide-react";
+import type { ProviderPlugin } from "../providerTypes";
+import { githubProviderCapabilities } from "./capabilities";
 
 export const githubProviderPlugin = {
   type: "github",
@@ -15,14 +15,13 @@ export const githubProviderPlugin = {
       required: false,
       secret: true,
       placeholder: "ghp_...",
-      description: "Used by the GitHub provider to access pull requests and issues.",
+      description:
+        "Used by the GitHub provider to access pull requests and issues.",
     },
   ] as const,
   capabilities: githubProviderCapabilities,
   providerKinds: ["git", "issue"],
   httpAccess: {
-    staticAllowedOrigins: [
-      "https://api.github.com",
-    ],
+    staticAllowedOrigins: ["https://api.github.com"],
   },
-} satisfies ProviderPlugin
+} satisfies ProviderPlugin;

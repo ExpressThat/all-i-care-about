@@ -1,23 +1,23 @@
-import { useState, type ReactNode } from "react"
-import { Settings, Workflow } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, type ReactNode } from "react";
+import { Settings, Workflow } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ProvidersSettings } from "./providers-settings"
-import { ThemeSelector } from "./theme-selector"
+} from "@/components/ui/dialog";
+import { ProvidersSettings } from "./providers-settings";
+import { ThemeSelector } from "./theme-selector";
 
-type SettingsCategory = "general" | "providers"
+type SettingsCategory = "general" | "providers";
 
 const categories: Array<{
-  description: string
-  icon: typeof Settings | typeof Workflow
-  id: SettingsCategory
-  label: string
+  description: string;
+  icon: typeof Settings | typeof Workflow;
+  id: SettingsCategory;
+  label: string;
 }> = [
   {
     description: "Theme and application preferences",
@@ -31,18 +31,18 @@ const categories: Array<{
     id: "providers",
     label: "Providers",
   },
-]
+];
 
 export function SettingsDialog({
   open,
   onOpenChange,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const [activeCategory, setActiveCategory] =
-    useState<SettingsCategory>("general")
-  const active = categories.find((category) => category.id === activeCategory)
+    useState<SettingsCategory>("general");
+  const active = categories.find((category) => category.id === activeCategory);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,7 +71,7 @@ export function SettingsDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 function CategoryButton({
@@ -79,9 +79,9 @@ function CategoryButton({
   isActive,
   onClick,
 }: {
-  category: (typeof categories)[number]
-  isActive: boolean
-  onClick: () => void
+  category: (typeof categories)[number];
+  isActive: boolean;
+  onClick: () => void;
 }) {
   return (
     <Button
@@ -99,7 +99,7 @@ function CategoryButton({
         </span>
       </span>
     </Button>
-  )
+  );
 }
 
 function GeneralSettings() {
@@ -109,7 +109,7 @@ function GeneralSettings() {
         <ThemeSelector />
       </SettingGroup>
     </div>
-  )
+  );
 }
 
 function SettingGroup({
@@ -117,9 +117,9 @@ function SettingGroup({
   description,
   title,
 }: {
-  children: ReactNode
-  description: string
-  title: string
+  children: ReactNode;
+  description: string;
+  title: string;
 }) {
   return (
     <section className="grid gap-3 border-b pb-5 last:border-b-0 last:pb-0">
@@ -129,5 +129,5 @@ function SettingGroup({
       </div>
       {children}
     </section>
-  )
+  );
 }

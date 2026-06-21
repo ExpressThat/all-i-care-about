@@ -1,24 +1,20 @@
-import { CalendarIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Input } from "@/components/ui/input"
+import { CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import type { DateTimeProviderField } from "@/lib/providers/providerTypes"
-import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings"
+} from "@/components/ui/popover";
+import type { DateTimeProviderField } from "@/lib/providers/providerTypes";
+import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings";
 import {
   formatDate,
   isDateDisabled,
   startOfDayTimestamp,
-} from "../date/helpers"
-import {
-  timeInputValue,
-  timePart,
-  timeValueFromInput,
-} from "../time/helpers"
+} from "../date/helpers";
+import { timeInputValue, timePart, timeValueFromInput } from "../time/helpers";
 
 export function DateTimeField({
   ariaDescribedBy,
@@ -27,37 +23,37 @@ export function DateTimeField({
   onChange,
   value,
 }: {
-  ariaDescribedBy?: string
-  field: DateTimeProviderField
-  fieldId: string
-  onChange: (value: ProviderFieldFormValue) => void
-  value: number | undefined
+  ariaDescribedBy?: string;
+  field: DateTimeProviderField;
+  fieldId: string;
+  onChange: (value: ProviderFieldFormValue) => void;
+  value: number | undefined;
 }) {
-  const selectedDate = value === undefined ? undefined : new Date(value)
-  const timeValue = value === undefined ? "" : timeInputValue(timePart(value))
+  const selectedDate = value === undefined ? undefined : new Date(value);
+  const timeValue = value === undefined ? "" : timeInputValue(timePart(value));
 
   function updateDate(date: Date | undefined) {
     if (!date) {
-      onChange("")
-      return
+      onChange("");
+      return;
     }
 
-    const nextTime = value === undefined ? 0 : timePart(value)
-    onChange(startOfDayTimestamp(date) + nextTime)
+    const nextTime = value === undefined ? 0 : timePart(value);
+    onChange(startOfDayTimestamp(date) + nextTime);
   }
 
   function updateTime(nextTime: string) {
-    const parsedTime = timeValueFromInput(nextTime)
+    const parsedTime = timeValueFromInput(nextTime);
     if (parsedTime === undefined) {
-      onChange(value === undefined ? "" : startOfDayTimestamp(new Date(value)))
-      return
+      onChange(value === undefined ? "" : startOfDayTimestamp(new Date(value)));
+      return;
     }
 
     const nextDate =
       value === undefined
         ? startOfDayTimestamp(new Date())
-        : startOfDayTimestamp(new Date(value))
-    onChange(nextDate + parsedTime)
+        : startOfDayTimestamp(new Date(value));
+    onChange(nextDate + parsedTime);
   }
 
   return (
@@ -72,7 +68,9 @@ export function DateTimeField({
             variant="outline"
           >
             <CalendarIcon aria-hidden="true" className="size-4" />
-            {selectedDate ? formatDate(selectedDate) : field.placeholder ?? "Select date"}
+            {selectedDate
+              ? formatDate(selectedDate)
+              : (field.placeholder ?? "Select date")}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-0">
@@ -86,12 +84,20 @@ export function DateTimeField({
       </Popover>
       <Input
         aria-label={`${field.label} time`}
-        max={field.max !== undefined ? timeInputValue(timePart(field.max)) : undefined}
-        min={field.min !== undefined ? timeInputValue(timePart(field.min)) : undefined}
+        max={
+          field.max !== undefined
+            ? timeInputValue(timePart(field.max))
+            : undefined
+        }
+        min={
+          field.min !== undefined
+            ? timeInputValue(timePart(field.min))
+            : undefined
+        }
         onChange={(event) => updateTime(event.currentTarget.value)}
         type="time"
         value={timeValue}
       />
     </div>
-  )
+  );
 }

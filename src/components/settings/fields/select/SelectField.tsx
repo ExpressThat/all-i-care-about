@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import type {
   ProviderSelectOption,
   SelectProviderField,
-} from "@/lib/providers/providerTypes"
-import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings"
-import { resolveSelectOptions } from "./helpers"
+} from "@/lib/providers/providerTypes";
+import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings";
+import { resolveSelectOptions } from "./helpers";
 
 export function SelectField({
   ariaDescribedBy,
@@ -20,39 +20,39 @@ export function SelectField({
   onChange,
   value,
 }: {
-  ariaDescribedBy?: string
-  field: SelectProviderField
-  fieldId: string
-  onChange: (value: ProviderFieldFormValue) => void
-  value: string
+  ariaDescribedBy?: string;
+  field: SelectProviderField;
+  fieldId: string;
+  onChange: (value: ProviderFieldFormValue) => void;
+  value: string;
 }) {
-  const [options, setOptions] = useState<readonly ProviderSelectOption[]>([])
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle")
+  const [options, setOptions] = useState<readonly ProviderSelectOption[]>([]);
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
 
   useEffect(() => {
-    let isMounted = true
-    setState("loading")
+    let isMounted = true;
+    setState("loading");
 
     Promise.resolve(resolveSelectOptions(field))
       .then((nextOptions) => {
         if (!isMounted) {
-          return
+          return;
         }
-        setOptions(nextOptions)
-        setState("idle")
+        setOptions(nextOptions);
+        setState("idle");
       })
       .catch((error: unknown) => {
-        console.error(`Failed to load options for "${field.key}".`, error)
+        console.error(`Failed to load options for "${field.key}".`, error);
         if (isMounted) {
-          setOptions([])
-          setState("error")
+          setOptions([]);
+          setState("error");
         }
-      })
+      });
 
     return () => {
-      isMounted = false
-    }
-  }, [field])
+      isMounted = false;
+    };
+  }, [field]);
 
   return (
     <div className="grid gap-1">
@@ -77,11 +77,15 @@ export function SelectField({
         </SelectContent>
       </Select>
       {state === "loading" ? (
-        <span className="text-xs text-muted-foreground">Loading options...</span>
+        <span className="text-xs text-muted-foreground">
+          Loading options...
+        </span>
       ) : null}
       {state === "error" ? (
-        <span className="text-xs text-destructive">Failed to load options.</span>
+        <span className="text-xs text-destructive">
+          Failed to load options.
+        </span>
       ) : null}
     </div>
-  )
+  );
 }

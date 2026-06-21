@@ -1,9 +1,9 @@
-import type { Settings } from "../Settings"
+import type { Settings } from "../Settings";
 
 export function getSystemTheme() {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "Dark"
-    : "Light"
+    : "Light";
 }
 
 export function calculateTheme(
@@ -12,15 +12,15 @@ export function calculateTheme(
 ) {
   if (theme === "System") {
     if (systemTheme === "dark") {
-      return "Dark"
+      return "Dark";
     }
 
     if (systemTheme === "light") {
-      return "Light"
+      return "Light";
     }
 
-    return getSystemTheme()
+    return getSystemTheme();
   }
 
-  return theme
+  return theme;
 }

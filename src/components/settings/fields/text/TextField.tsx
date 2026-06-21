@@ -1,9 +1,9 @@
-import { Eye, EyeOff } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import type { ProviderField } from "@/lib/providers/providerTypes"
-import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings"
-import { getTextInputType, stringFieldValue } from "./helpers"
+import { Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { ProviderField } from "@/lib/providers/providerTypes";
+import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings";
+import { getTextInputType, stringFieldValue } from "./helpers";
 
 export function TextField({
   descriptionId,
@@ -15,14 +15,14 @@ export function TextField({
   showRevealButton,
   value,
 }: {
-  descriptionId?: string
-  field: ProviderField
-  fieldId: string
-  isRevealed: boolean
-  onChange: (value: ProviderFieldFormValue) => void
-  onToggleReveal: () => void
-  showRevealButton: boolean
-  value: ProviderFieldFormValue | undefined
+  descriptionId?: string;
+  field: ProviderField;
+  fieldId: string;
+  isRevealed: boolean;
+  onChange: (value: ProviderFieldFormValue) => void;
+  onToggleReveal: () => void;
+  showRevealButton: boolean;
+  value: ProviderFieldFormValue | undefined;
 }) {
   return (
     <div className="relative">
@@ -40,7 +40,9 @@ export function TextField({
       />
       {showRevealButton ? (
         <Button
-          aria-label={isRevealed ? `Hide ${field.label}` : `Reveal ${field.label}`}
+          aria-label={
+            isRevealed ? `Hide ${field.label}` : `Reveal ${field.label}`
+          }
           className="absolute top-1/2 right-1 -translate-y-1/2"
           onClick={onToggleReveal}
           size="icon-xs"
@@ -55,5 +57,5 @@ export function TextField({
         </Button>
       ) : null}
     </div>
-  )
+  );
 }

@@ -1,13 +1,13 @@
-import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import type { WatchedRepository } from "@/lib/repositories/repositoryCache"
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { WatchedRepository } from "@/lib/repositories/repositoryCache";
 
 export function WatchedRepositoriesList({
   onRemove,
   repositories,
 }: {
-  onRemove: (repository: WatchedRepository) => void
-  repositories: WatchedRepository[]
+  onRemove: (repository: WatchedRepository) => void;
+  repositories: WatchedRepository[];
 }) {
   return (
     <div className="space-y-2">
@@ -45,5 +45,5 @@ export function WatchedRepositoriesList({
         </div>
       )}
     </div>
-  )
+  );
 }

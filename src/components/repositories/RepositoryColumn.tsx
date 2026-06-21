@@ -1,20 +1,20 @@
-import ReactTimeAgo from "react-time-ago"
+import ReactTimeAgo from "react-time-ago";
 import type {
   CachedPullRequest,
   WatchedRepository,
-} from "@/lib/repositories/repositoryCache"
+} from "@/lib/repositories/repositoryCache";
 import {
   formatDateTime,
   formatRelativeTime,
   parseDate,
-} from "./repositoryUtils"
+} from "./repositoryUtils";
 
 export function RepositoryColumn({
   pullRequests,
   repository,
 }: {
-  pullRequests: CachedPullRequest[]
-  repository: WatchedRepository
+  pullRequests: CachedPullRequest[];
+  repository: WatchedRepository;
 }) {
   return (
     <article className="flex max-h-full w-80 shrink-0 flex-col rounded-lg border bg-card text-card-foreground">
@@ -44,7 +44,7 @@ export function RepositoryColumn({
           </div>
         ) : (
           pullRequests.map((pullRequest) => {
-            const updatedAt = parseDate(pullRequest.updatedAt)
+            const updatedAt = parseDate(pullRequest.updatedAt);
 
             return (
               <a
@@ -80,18 +80,20 @@ export function RepositoryColumn({
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {updatedAt ? (
-
-                      <ReactTimeAgo date={updatedAt} locale="en-US" />
+                      <>
+                        {formatDateTime(pullRequest.updatedAt)} (
+                        <ReactTimeAgo date={updatedAt} locale="en-US" />)
+                      </>
                     ) : (
                       pullRequest.updatedAt
                     )}
                   </span>
                 </div>
               </a>
-            )
+            );
           })
         )}
       </div>
     </article>
-  )
+  );
 }

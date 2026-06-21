@@ -1,42 +1,41 @@
-import { useState } from "react"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import type { ProviderInstance } from "@/lib/providers/providerTypes"
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { ProviderInstance } from "@/lib/providers/providerTypes";
 import {
   removeProvider as removePersistedProvider,
   saveProvider as savePersistedProvider,
   type ProviderSaveSecurityInput,
   useSetting,
-} from "@/lib/settings/settingsStore"
-import { AddProviderWizard } from "./providers/AddProviderWizard"
-import { ProviderCard } from "./providers/ProviderCard"
+} from "@/lib/settings/settingsStore";
+import { AddProviderWizard } from "./providers/AddProviderWizard";
+import { ProviderCard } from "./providers/ProviderCard";
 
 export function ProvidersSettings() {
-  const providers = useSetting("Providers")
-  const [wizardOpen, setWizardOpen] = useState(false)
-  const [editingProvider, setEditingProvider] = useState<ProviderInstance | null>(
-    null,
-  )
+  const providers = useSetting("Providers");
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingProvider, setEditingProvider] =
+    useState<ProviderInstance | null>(null);
 
   function removeProvider(providerId: string) {
-    void removePersistedProvider(providerId)
+    void removePersistedProvider(providerId);
   }
 
   function openAddProvider() {
-    setEditingProvider(null)
-    setWizardOpen(true)
+    setEditingProvider(null);
+    setWizardOpen(true);
   }
 
   function openEditProvider(provider: ProviderInstance) {
-    setEditingProvider(provider)
-    setWizardOpen(true)
+    setEditingProvider(provider);
+    setWizardOpen(true);
   }
 
   async function saveProvider(
     provider: ProviderInstance,
     security: ProviderSaveSecurityInput,
   ) {
-    await savePersistedProvider(provider, security)
+    await savePersistedProvider(provider, security);
   }
 
   return (
@@ -78,5 +77,5 @@ export function ProvidersSettings() {
         open={wizardOpen}
       />
     </div>
-  )
+  );
 }

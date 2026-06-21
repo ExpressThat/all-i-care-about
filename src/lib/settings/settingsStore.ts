@@ -1,124 +1,128 @@
-import { useRef, useSyncExternalStore } from "react"
-import { invoke } from "@tauri-apps/api/core"
-import type { ProviderInstance } from "@/lib/providers/providerTypes"
-import { normalizeProviderCapability } from "@/lib/providers/capabilities"
+import { useRef, useSyncExternalStore } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import type { ProviderInstance } from "@/lib/providers/providerTypes";
+import { normalizeProviderCapability } from "@/lib/providers/capabilities";
 import {
   DEFAULT_SETTINGS,
   isAppTheme,
   type Settings,
   type SettingsKey,
-} from "./Settings"
+} from "./Settings";
 
-type Listener = () => void
-type KeyedListeners = { [K in SettingsKey]: Set<Listener> }
+type Listener = () => void;
+type KeyedListeners = { [K in SettingsKey]: Set<Listener> };
 
-let settings: Settings = { ...DEFAULT_SETTINGS }
-let initialized = false
-let initPromise: Promise<void> | null = null
+let settings: Settings = { ...DEFAULT_SETTINGS };
+let initialized = false;
+let initPromise: Promise<void> | null = null;
 
-const allListeners = new Set<Listener>()
-const keyedListeners = createKeyedListeners()
+const allListeners = new Set<Listener>();
+const keyedListeners = createKeyedListeners();
 
 function createKeyedListeners(): KeyedListeners {
   const entries = Object.keys(DEFAULT_SETTINGS).map((key) => [
     key,
     new Set<Listener>(),
-  ])
-  return Object.fromEntries(entries) as KeyedListeners
+  ]);
+  return Object.fromEntries(entries) as KeyedListeners;
 }
 
 function cloneSettings(): Settings {
-  return { ...settings }
+  return { ...settings };
 }
 
 function notify(changedKeys: SettingsKey[]) {
   for (const key of changedKeys) {
     for (const listener of keyedListeners[key]) {
-      listener()
+      listener();
     }
   }
 
   if (changedKeys.length > 0) {
     for (const listener of allListeners) {
-      listener()
+      listener();
     }
   }
 }
 
 export async function initSettingsStore(): Promise<void> {
   if (initialized) {
-    return
+    return;
   }
 
   if (initPromise) {
-    return initPromise
+    return initPromise;
   }
 
   initPromise = (async () => {
-    settings = normalizeSettings(await invoke<Settings>("get_settings"))
-    initialized = true
-    notify(Object.keys(DEFAULT_SETTINGS) as SettingsKey[])
+    settings = normalizeSettings(await invoke<Settings>("get_settings"));
+    initialized = true;
+    notify(Object.keys(DEFAULT_SETTINGS) as SettingsKey[]);
   })()
     .catch((error) => {
-      settings = { ...DEFAULT_SETTINGS }
-      initialized = true
+      settings = { ...DEFAULT_SETTINGS };
+      initialized = true;
       console.error(
         "Failed to initialize settings store. Falling back to defaults.",
         error,
-      )
-      notify(Object.keys(DEFAULT_SETTINGS) as SettingsKey[])
+      );
+      notify(Object.keys(DEFAULT_SETTINGS) as SettingsKey[]);
     })
     .finally(() => {
-      initPromise = null
-    })
+      initPromise = null;
+    });
 
-  return initPromise
+  return initPromise;
 }
 
 export function getSetting<K extends SettingsKey>(key: K): Settings[K] {
-  return settings[key]
+  return settings[key];
 }
 
 export function subscribeToAll(listener: Listener): () => void {
-  allListeners.add(listener)
+  allListeners.add(listener);
   return () => {
-    allListeners.delete(listener)
-  }
+    allListeners.delete(listener);
+  };
 }
 
 export function subscribeToKey<K extends SettingsKey>(
   key: K,
   listener: Listener,
 ): () => void {
-  keyedListeners[key].add(listener)
+  keyedListeners[key].add(listener);
   return () => {
-    keyedListeners[key].delete(listener)
-  }
+    keyedListeners[key].delete(listener);
+  };
 }
 
 export async function setSetting<K extends SettingsKey>(
   key: K,
   value: Settings[K],
 ): Promise<void> {
-  await initSettingsStore()
+  await initSettingsStore();
 
   if (key !== "Theme") {
-    throw new Error(`Setting "${String(key)}" must be changed through a Rust command.`)
+    throw new Error(
+      `Setting "${String(key)}" must be changed through a Rust command.`,
+    );
   }
 
   try {
-    settings = normalizeSettings(await invoke<Settings>("set_theme", { theme: value }))
-    notify(["Theme"])
+    settings = normalizeSettings(
+      await invoke<Settings>("set_theme", { theme: value }),
+    );
+    notify(["Theme"]);
   } catch (error) {
-    console.error(`Failed to persist setting "${String(key)}".`, error)
-    throw error
+    console.error(`Failed to persist setting "${String(key)}".`, error);
+    throw error;
   }
 }
 
 export async function setSettings(patch: Partial<Settings>): Promise<void> {
-  await initSettingsStore()
+  await initSettingsStore();
   if (patch.Theme !== undefined) {
-    await setSetting("Theme", patch.Theme)
+    await setSetting("Theme", patch.Theme);
   }
 }
 
@@ -130,21 +134,21 @@ export type ProviderSaveSecurityInput = {
    * Rust validates and seals these before persistence. Existing secrets are
    * preserved only when the old sealed origin set matches this submitted set.
    */
-  allowedOrigins: string[]
+  allowedOrigins: string[];
   /**
    * Dotted paths for secret fields declared by the provider plugin.
    *
    * Rust stores these in the sealed security payload so fetch-time secret
    * injection can reject undeclared secret paths.
    */
-  secretSettingPaths: string[]
-}
+  secretSettingPaths: string[];
+};
 
 export async function saveProvider(
   provider: ProviderInstance,
   security: ProviderSaveSecurityInput,
 ): Promise<void> {
-  await initSettingsStore()
+  await initSettingsStore();
   try {
     settings = normalizeSettings(
       await invoke<Settings>("save_provider", {
@@ -154,22 +158,24 @@ export async function saveProvider(
           secretSettingPaths: security.secretSettingPaths,
         },
       }),
-    )
-    notify(["Providers"])
+    );
+    notify(["Providers"]);
   } catch (error) {
-    console.error("Failed to save provider.", error)
-    throw error
+    console.error("Failed to save provider.", error);
+    throw error;
   }
 }
 
 export async function removeProvider(providerId: string): Promise<void> {
-  await initSettingsStore()
+  await initSettingsStore();
   try {
-    settings = normalizeSettings(await invoke<Settings>("remove_provider", { providerId }))
-    notify(["Providers"])
+    settings = normalizeSettings(
+      await invoke<Settings>("remove_provider", { providerId }),
+    );
+    notify(["Providers"]);
   } catch (error) {
-    console.error("Failed to remove provider.", error)
-    throw error
+    console.error("Failed to remove provider.", error);
+    throw error;
   }
 }
 
@@ -178,7 +184,7 @@ export function useSetting<K extends SettingsKey>(key: K): Settings[K] {
     (onStoreChange) => subscribeToKey(key, onStoreChange),
     () => settings[key],
     () => settings[key],
-  )
+  );
 }
 
 export function useSettingSelector<K extends SettingsKey, T>(
@@ -186,40 +192,40 @@ export function useSettingSelector<K extends SettingsKey, T>(
   selector: (value: Settings[K]) => T,
   isEqual: (a: T, b: T) => boolean = Object.is,
 ): T {
-  const selectedRef = useRef<T>(selector(settings[key]))
+  const selectedRef = useRef<T>(selector(settings[key]));
   return useSyncExternalStore(
     (onStoreChange) => subscribeToKey(key, onStoreChange),
     () => {
-      const next = selector(settings[key])
+      const next = selector(settings[key]);
       if (!isEqual(selectedRef.current, next)) {
-        selectedRef.current = next
+        selectedRef.current = next;
       }
-      return selectedRef.current
+      return selectedRef.current;
     },
     () => selectedRef.current,
-  )
+  );
 }
 
 export function useAllSettings(): Settings {
-  return useSyncExternalStore(subscribeToAll, cloneSettings, cloneSettings)
+  return useSyncExternalStore(subscribeToAll, cloneSettings, cloneSettings);
 }
 
 export function useSettings<T>(
   selector: (state: Settings) => T,
   isEqual: (a: T, b: T) => boolean = Object.is,
 ): T {
-  const selectedRef = useRef<T>(selector(settings))
+  const selectedRef = useRef<T>(selector(settings));
   return useSyncExternalStore(
     subscribeToAll,
     () => {
-      const next = selector(settings)
+      const next = selector(settings);
       if (!isEqual(selectedRef.current, next)) {
-        selectedRef.current = next
+        selectedRef.current = next;
       }
-      return selectedRef.current
+      return selectedRef.current;
     },
     () => selectedRef.current,
-  )
+  );
 }
 
 function normalizeSettings(value: Settings): Settings {
@@ -228,7 +234,7 @@ function normalizeSettings(value: Settings): Settings {
       ? value.Providers.map(normalizeProvider)
       : [],
     Theme: isAppTheme(value.Theme) ? value.Theme : DEFAULT_SETTINGS.Theme,
-  }
+  };
 }
 
 function normalizeProvider(provider: ProviderInstance): ProviderInstance {
@@ -241,5 +247,5 @@ function normalizeProvider(provider: ProviderInstance): ProviderInstance {
           .filter((capability) => capability !== null),
       ),
     ),
-  }
+  };
 }

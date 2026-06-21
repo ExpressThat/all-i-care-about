@@ -7,20 +7,20 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import {
   getProviderCapabilityDefinition,
   isCapabilityAllowedForProvider,
   type ProviderCapability,
-} from "@/lib/providers/capabilities"
+} from "@/lib/providers/capabilities";
 import type {
   ProviderInstance,
   ProviderPlugin,
   ProviderType,
-} from "@/lib/providers/providerTypes"
-import { CapabilityOption, ProviderOption } from "./ProviderWizardOptions"
-import { matchesSearch } from "./wizardHelpers"
+} from "@/lib/providers/providerTypes";
+import { CapabilityOption, ProviderOption } from "./ProviderWizardOptions";
+import { matchesSearch } from "./wizardHelpers";
 
 export function ProviderPicker({
   disabled,
@@ -30,19 +30,19 @@ export function ProviderPicker({
   providerSearch,
   selectedProviderType,
 }: {
-  disabled: boolean
-  onProviderSearchChange: (value: string) => void
-  onSelectProvider: (plugin: ProviderPlugin) => void
-  providerPlugins: ProviderPlugin[]
-  providerSearch: string
-  selectedProviderType: ProviderType
+  disabled: boolean;
+  onProviderSearchChange: (value: string) => void;
+  onSelectProvider: (plugin: ProviderPlugin) => void;
+  providerPlugins: ProviderPlugin[];
+  providerSearch: string;
+  selectedProviderType: ProviderType;
 }) {
   const filteredProviderPlugins = providerPlugins.filter((plugin) =>
     matchesSearch(
       `${plugin.label} ${plugin.description} ${plugin.type} ${plugin.providerKinds.join(" ")}`,
       providerSearch,
     ),
-  )
+  );
 
   return (
     <section className="grid gap-2">
@@ -71,7 +71,7 @@ export function ProviderPicker({
         )}
       </div>
     </section>
-  )
+  );
 }
 
 export function CapabilityPicker({
@@ -81,29 +81,31 @@ export function CapabilityPicker({
   plugin,
   selectedCapabilities,
 }: {
-  capabilitySearch: string
-  onCapabilitySearchChange: (value: string) => void
-  onToggleCapability: (capability: ProviderCapability) => void
-  plugin: ProviderPlugin
-  selectedCapabilities: ProviderCapability[]
+  capabilitySearch: string;
+  onCapabilitySearchChange: (value: string) => void;
+  onToggleCapability: (capability: ProviderCapability) => void;
+  plugin: ProviderPlugin;
+  selectedCapabilities: ProviderCapability[];
 }) {
   const filteredCapabilities = plugin.capabilities.filter((capability) => {
     if (!isCapabilityAllowedForProvider(plugin, capability)) {
-      return false
+      return false;
     }
 
-    const definition = getProviderCapabilityDefinition(capability)
+    const definition = getProviderCapabilityDefinition(capability);
     return matchesSearch(
       `${capability} ${definition?.providerKind ?? ""} ${definition?.displayName ?? ""} ${definition?.description ?? ""}`,
       capabilitySearch,
-    )
-  })
+    );
+  });
 
   return (
     <section className="grid gap-3">
       <h3 className="text-sm font-semibold">Capabilities</h3>
       <Input
-        onChange={(event) => onCapabilitySearchChange(event.currentTarget.value)}
+        onChange={(event) =>
+          onCapabilitySearchChange(event.currentTarget.value)
+        }
         placeholder="Search capabilities..."
         value={capabilitySearch}
       />
@@ -124,7 +126,7 @@ export function CapabilityPicker({
         )}
       </div>
     </section>
-  )
+  );
 }
 
 export function ProviderSecretClearWarning({
@@ -133,17 +135,17 @@ export function ProviderSecretClearWarning({
   onConfirm,
   pendingProviderSave,
 }: {
-  isSaving: boolean
-  onCancel: () => void
-  onConfirm: (provider: ProviderInstance) => void
-  pendingProviderSave: ProviderInstance | null
+  isSaving: boolean;
+  onCancel: () => void;
+  onConfirm: (provider: ProviderInstance) => void;
+  pendingProviderSave: ProviderInstance | null;
 }) {
   return (
     <AlertDialog
       open={pendingProviderSave !== null}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) {
-          onCancel()
+          onCancel();
         }
       }}
     >
@@ -162,7 +164,7 @@ export function ProviderSecretClearWarning({
             disabled={isSaving}
             onClick={() => {
               if (pendingProviderSave) {
-                onConfirm(pendingProviderSave)
+                onConfirm(pendingProviderSave);
               }
             }}
           >
@@ -171,5 +173,5 @@ export function ProviderSecretClearWarning({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

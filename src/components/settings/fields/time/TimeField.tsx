@@ -1,7 +1,11 @@
-import { Input } from "@/components/ui/input"
-import type { DateTimeProviderField } from "@/lib/providers/providerTypes"
-import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings"
-import { numberFieldValue, timeInputValue, timeValueFromInput } from "./helpers"
+import { Input } from "@/components/ui/input";
+import type { DateTimeProviderField } from "@/lib/providers/providerTypes";
+import type { ProviderFieldFormValue } from "@/lib/providers/providerSettings";
+import {
+  numberFieldValue,
+  timeInputValue,
+  timeValueFromInput,
+} from "./helpers";
 
 export function TimeField({
   descriptionId,
@@ -10,11 +14,11 @@ export function TimeField({
   onChange,
   value,
 }: {
-  descriptionId?: string
-  field: DateTimeProviderField
-  fieldId: string
-  onChange: (value: ProviderFieldFormValue) => void
-  value: ProviderFieldFormValue | undefined
+  descriptionId?: string;
+  field: DateTimeProviderField;
+  fieldId: string;
+  onChange: (value: ProviderFieldFormValue) => void;
+  value: ProviderFieldFormValue | undefined;
 }) {
   return (
     <Input
@@ -28,5 +32,5 @@ export function TimeField({
       type="time"
       value={value === undefined ? "" : timeInputValue(numberFieldValue(value))}
     />
-  )
+  );
 }

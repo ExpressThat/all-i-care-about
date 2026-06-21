@@ -1,19 +1,19 @@
 import {
   isProviderCapability,
   normalizeProviderCapability,
-} from "./capabilities"
+} from "./capabilities";
 import {
   isProviderType,
   isProviderSettingRecord,
   type ProviderInstance,
-} from "./providerTypes"
+} from "./providerTypes";
 
 export function isProviderInstance(value: unknown): value is ProviderInstance {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false
+    return false;
   }
 
-  const candidate = value as Partial<ProviderInstance>
+  const candidate = value as Partial<ProviderInstance>;
   return (
     typeof candidate.id === "string" &&
     isProviderType(candidate.type) &&
@@ -25,16 +25,12 @@ export function isProviderInstance(value: unknown): value is ProviderInstance {
         isProviderCapability(capability) ||
         normalizeProviderCapability(capability) !== null,
     ) &&
-    (
-      candidate.security === undefined ||
-      (
-        Array.isArray(candidate.security.allowedOrigins) &&
+    (candidate.security === undefined ||
+      (Array.isArray(candidate.security.allowedOrigins) &&
         candidate.security.allowedOrigins.every(
           (origin) => typeof origin === "string",
         ) &&
         typeof candidate.security.sealed === "string" &&
-        candidate.security.version === 1
-      )
-    )
-  )
+        candidate.security.version === 1))
+  );
 }

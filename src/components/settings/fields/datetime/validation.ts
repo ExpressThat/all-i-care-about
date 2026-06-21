@@ -1,1 +1,1 @@
-export { validateDateField as validateDateTimeField } from "../date/validation"
+export { validateDateField as validateDateTimeField } from "../date/validation";

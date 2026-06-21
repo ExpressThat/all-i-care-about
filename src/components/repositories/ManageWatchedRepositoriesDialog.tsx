@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,15 +7,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import type { ProviderInstance } from "@/lib/providers/providerTypes"
+} from "@/components/ui/select";
+import type { ProviderInstance } from "@/lib/providers/providerTypes";
 import {
   addWatchedRepository,
   listAccessibleRepositories,
@@ -24,12 +24,12 @@ import {
   removeWatchedRepository,
   type AccessibleRepository,
   type WatchedRepository,
-} from "@/lib/repositories/repositoryCache"
-import { AccessibleRepositoryPicker } from "./AccessibleRepositoryPicker"
-import { shouldRefreshAccessibleRepositories } from "./manageWatchedReposUtils"
-import { WatchedRepositoriesList } from "./WatchedRepositoriesList"
+} from "@/lib/repositories/repositoryCache";
+import { AccessibleRepositoryPicker } from "./AccessibleRepositoryPicker";
+import { shouldRefreshAccessibleRepositories } from "./manageWatchedReposUtils";
+import { WatchedRepositoriesList } from "./WatchedRepositoriesList";
 
-const NESTED_SELECT_CLOSE_GRACE_MS = 150
+const NESTED_SELECT_CLOSE_GRACE_MS = 150;
 
 export function ManageWatchedRepositoriesDialog({
   gitProviders,
@@ -37,171 +37,177 @@ export function ManageWatchedRepositoriesDialog({
   onOpenChange,
   open,
 }: {
-  gitProviders: ProviderInstance[]
-  onChanged: () => void
-  onOpenChange: (open: boolean) => void
-  open: boolean
+  gitProviders: ProviderInstance[];
+  onChanged: () => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
 }) {
-  const [providerId, setProviderId] = useState("")
-  const [watchedRepositories, setWatchedRepositories] = useState<WatchedRepository[]>([])
-  const [accessibleRepositories, setAccessibleRepositories] = useState<AccessibleRepository[]>([])
-  const [selectedFullName, setSelectedFullName] = useState("")
-  const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [providerSelectOpen, setProviderSelectOpen] = useState(false)
-  const [repositorySelectOpen, setRepositorySelectOpen] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const providerSelectOpenRef = useRef(false)
-  const repositorySelectOpenRef = useRef(false)
-  const nestedSelectInteractionRef = useRef(false)
-  const nestedSelectCloseTimerRef = useRef<number | undefined>(undefined)
+  const [providerId, setProviderId] = useState("");
+  const [watchedRepositories, setWatchedRepositories] = useState<
+    WatchedRepository[]
+  >([]);
+  const [accessibleRepositories, setAccessibleRepositories] = useState<
+    AccessibleRepository[]
+  >([]);
+  const [selectedFullName, setSelectedFullName] = useState("");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [providerSelectOpen, setProviderSelectOpen] = useState(false);
+  const [repositorySelectOpen, setRepositorySelectOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const providerSelectOpenRef = useRef(false);
+  const repositorySelectOpenRef = useRef(false);
+  const nestedSelectInteractionRef = useRef(false);
+  const nestedSelectCloseTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     return () => {
-      window.clearTimeout(nestedSelectCloseTimerRef.current)
-    }
-  }, [])
+      window.clearTimeout(nestedSelectCloseTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) {
-      return
+      return;
     }
 
     setProviderId((currentProviderId) => {
       if (currentProviderId) {
-        return currentProviderId
+        return currentProviderId;
       }
-      return gitProviders[0]?.id ?? ""
-    })
-  }, [gitProviders, open])
+      return gitProviders[0]?.id ?? "";
+    });
+  }, [gitProviders, open]);
 
   useEffect(() => {
     if (!open || !providerId) {
-      return
+      return;
     }
 
-    void load(providerId, search)
-  }, [open, providerId, search])
+    void load(providerId, search);
+  }, [open, providerId, search]);
 
   const watchedFullNames = useMemo(
     () => new Set(watchedRepositories.map((repository) => repository.fullName)),
     [watchedRepositories],
-  )
+  );
   const addableRepositories = accessibleRepositories.filter(
     (repository) => !watchedFullNames.has(repository.fullName),
-  )
+  );
   const selectedRepository = accessibleRepositories.find(
     (repository) => repository.fullName === selectedFullName,
-  )
+  );
 
   function updateNestedSelectInteraction() {
-    window.clearTimeout(nestedSelectCloseTimerRef.current)
+    window.clearTimeout(nestedSelectCloseTimerRef.current);
 
     if (providerSelectOpenRef.current || repositorySelectOpenRef.current) {
-      nestedSelectInteractionRef.current = true
-      return
+      nestedSelectInteractionRef.current = true;
+      return;
     }
 
     nestedSelectCloseTimerRef.current = window.setTimeout(() => {
-      nestedSelectInteractionRef.current = false
-    }, NESTED_SELECT_CLOSE_GRACE_MS)
+      nestedSelectInteractionRef.current = false;
+    }, NESTED_SELECT_CLOSE_GRACE_MS);
   }
 
   function handleProviderSelectOpenChange(nextOpen: boolean) {
-    providerSelectOpenRef.current = nextOpen
-    setProviderSelectOpen(nextOpen)
-    updateNestedSelectInteraction()
+    providerSelectOpenRef.current = nextOpen;
+    setProviderSelectOpen(nextOpen);
+    updateNestedSelectInteraction();
   }
 
   function handleRepositorySelectOpenChange(nextOpen: boolean) {
-    repositorySelectOpenRef.current = nextOpen
-    setRepositorySelectOpen(nextOpen)
-    updateNestedSelectInteraction()
+    repositorySelectOpenRef.current = nextOpen;
+    setRepositorySelectOpen(nextOpen);
+    updateNestedSelectInteraction();
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen && nestedSelectInteractionRef.current) {
-      return
+      return;
     }
 
-    onOpenChange(nextOpen)
+    onOpenChange(nextOpen);
   }
 
   async function load(nextProviderId = providerId, nextSearch = search) {
     if (!nextProviderId) {
-      return
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [watched, accessible] = await Promise.all([
         listWatchedRepositories(nextProviderId),
         listAccessibleRepositories(nextProviderId, nextSearch),
-      ])
-      setWatchedRepositories(watched)
-      setAccessibleRepositories(accessible)
+      ]);
+      setWatchedRepositories(watched);
+      setAccessibleRepositories(accessible);
 
       if (shouldRefreshAccessibleRepositories(accessible)) {
-        const refreshed = await refreshAccessibleRepositories(nextProviderId)
-        setAccessibleRepositories(refreshed)
+        const refreshed = await refreshAccessibleRepositories(nextProviderId);
+        setAccessibleRepositories(refreshed);
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function refreshRepositories() {
     if (!providerId) {
-      return
+      return;
     }
 
-    setRefreshing(true)
-    setError(null)
+    setRefreshing(true);
+    setError(null);
     try {
-      setAccessibleRepositories(await refreshAccessibleRepositories(providerId))
+      setAccessibleRepositories(
+        await refreshAccessibleRepositories(providerId),
+      );
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
   }
 
   async function addRepository() {
     if (!selectedRepository) {
-      return
+      return;
     }
 
-    setSaving(true)
-    setError(null)
+    setSaving(true);
+    setError(null);
     try {
       await addWatchedRepository(
         selectedRepository.providerId,
         selectedRepository.owner,
         selectedRepository.name,
-      )
-      setSelectedFullName("")
-      await load(selectedRepository.providerId, search)
-      onChanged()
+      );
+      setSelectedFullName("");
+      await load(selectedRepository.providerId, search);
+      onChanged();
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function removeRepository(repository: WatchedRepository) {
-    setError(null)
+    setError(null);
     try {
-      await removeWatchedRepository(repository.id)
-      await load(repository.providerId, search)
-      onChanged()
+      await removeWatchedRepository(repository.id);
+      await load(repository.providerId, search);
+      onChanged();
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error))
+      setError(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -211,7 +217,7 @@ export function ManageWatchedRepositoriesDialog({
         className="max-h-none max-w-2xl overflow-visible"
         onInteractOutside={(event) => {
           if (nestedSelectInteractionRef.current) {
-            event.preventDefault()
+            event.preventDefault();
           }
         }}
       >
@@ -289,5 +295,5 @@ export function ManageWatchedRepositoriesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

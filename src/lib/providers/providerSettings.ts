@@ -5,13 +5,13 @@ import type {
   ProviderSettingValue,
   ProviderSettingsRecord,
   ProviderType,
-} from "./providerTypes"
+} from "./providerTypes";
 
 /** Primitive value stored in the provider wizard form state. */
-export type ProviderFieldFormValue = string | number | boolean
+export type ProviderFieldFormValue = string | number | boolean;
 
 /** Flat provider wizard form state keyed by dotted field path. */
-export type ProviderFieldFormValues = Record<string, ProviderFieldFormValue>
+export type ProviderFieldFormValues = Record<string, ProviderFieldFormValue>;
 
 export async function collectPersistedProviderSettings({
   existingSettings,
@@ -19,10 +19,10 @@ export async function collectPersistedProviderSettings({
   isEditing,
   plugin,
 }: {
-  existingSettings?: ProviderSettingsRecord
-  fieldValues: ProviderFieldFormValues
-  isEditing: boolean
-  plugin: ProviderPlugin
+  existingSettings?: ProviderSettingsRecord;
+  fieldValues: ProviderFieldFormValues;
+  isEditing: boolean;
+  plugin: ProviderPlugin;
 }) {
   return collectPersistedFields({
     existingSettings,
@@ -30,14 +30,17 @@ export async function collectPersistedProviderSettings({
     fields: plugin.fields,
     isEditing,
     path: [],
-  })
+  });
 }
 
 export function getNonSecretProviderSettings<Type extends ProviderType>(
   settings: ProviderSettingsRecord,
   fields: readonly ProviderField[],
 ): NonSecretProviderSettings<Type> {
-  return collectNonSecretFields(settings, fields) as NonSecretProviderSettings<Type>
+  return collectNonSecretFields(
+    settings,
+    fields,
+  ) as NonSecretProviderSettings<Type>;
 }
 
 export function getEditableProviderFieldValues(
@@ -45,10 +48,10 @@ export function getEditableProviderFieldValues(
   settings: ProviderSettingsRecord,
 ) {
   if (!plugin) {
-    return {}
+    return {};
   }
 
-  return collectEditableFields(plugin.fields, settings, [])
+  return collectEditableFields(plugin.fields, settings, []);
 }
 
 export function normalizePersistedFieldValue(
@@ -56,11 +59,11 @@ export function normalizePersistedFieldValue(
   value: ProviderFieldFormValue | undefined,
 ): ProviderSettingValue | undefined {
   if (field.type === "group") {
-    return undefined
+    return undefined;
   }
 
   if (isEmptyFormValue(value)) {
-    return undefined
+    return undefined;
   }
 
   switch (field.type) {
@@ -69,18 +72,18 @@ export function normalizePersistedFieldValue(
     case "time":
     case "datetime": {
       const numberValue =
-        typeof value === "number" ? value : Number.parseFloat(String(value))
-      return Number.isFinite(numberValue) ? numberValue : undefined
+        typeof value === "number" ? value : Number.parseFloat(String(value));
+      return Number.isFinite(numberValue) ? numberValue : undefined;
     }
     case "boolean":
-      return value === true || value === "true"
+      return value === true || value === "true";
     case "secret":
     case "text":
     case "url":
     case "email":
     case "textarea":
     case "select":
-      return String(value)
+      return String(value);
   }
 }
 
@@ -91,11 +94,11 @@ export function getProviderAllowedOrigins(
   return normalizeOriginSet([
     ...(plugin.httpAccess?.staticAllowedOrigins ?? []),
     ...collectOriginAccessFields(plugin.fields, settings),
-  ])
+  ]);
 }
 
 export function getProviderSecretSettingPaths(plugin: ProviderPlugin) {
-  return collectSecretSettingPaths(plugin.fields, [])
+  return collectSecretSettingPaths(plugin.fields, []);
 }
 
 async function collectPersistedFields({
@@ -105,13 +108,13 @@ async function collectPersistedFields({
   isEditing,
   path,
 }: {
-  existingSettings?: ProviderSettingsRecord
-  fieldValues: ProviderFieldFormValues
-  fields: readonly ProviderField[]
-  isEditing: boolean
-  path: string[]
+  existingSettings?: ProviderSettingsRecord;
+  fieldValues: ProviderFieldFormValues;
+  fields: readonly ProviderField[];
+  isEditing: boolean;
+  path: string[];
 }) {
-  const settings: ProviderSettingsRecord = {}
+  const settings: ProviderSettingsRecord = {};
 
   for (const field of fields) {
     if (field.type === "group") {
@@ -121,68 +124,68 @@ async function collectPersistedFields({
         fields: field.fields,
         isEditing,
         path: [...path, field.key],
-      })
+      });
 
       if (Object.keys(groupSettings).length > 0) {
-        settings[field.key] = groupSettings
+        settings[field.key] = groupSettings;
       }
-      continue
+      continue;
     }
 
-    const formKey = getFieldFormKey(path, field.key)
-    const value = fieldValues[formKey]
+    const formKey = getFieldFormKey(path, field.key);
+    const value = fieldValues[formKey];
 
     if (field.secret) {
       if (typeof value === "string" && value) {
-        settings[field.key] = value
+        settings[field.key] = value;
       }
-      continue
+      continue;
     }
 
-    const normalizedValue = normalizePersistedFieldValue(field, value)
+    const normalizedValue = normalizePersistedFieldValue(field, value);
     if (normalizedValue !== undefined) {
-      settings[field.key] = normalizedValue
+      settings[field.key] = normalizedValue;
     }
   }
 
-  return settings
+  return settings;
 }
 
 function collectNonSecretFields(
   settings: ProviderSettingsRecord,
   fields: readonly ProviderField[],
 ) {
-  const nonSecretSettings: Record<string, unknown> = {}
+  const nonSecretSettings: Record<string, unknown> = {};
 
   for (const field of fields) {
     if (field.type === "group") {
       nonSecretSettings[field.key] = collectNonSecretFields(
         getNestedSettings(settings, field.key) ?? {},
         field.fields,
-      )
-      continue
+      );
+      continue;
     }
 
     if (field.secret) {
-      continue
+      continue;
     }
 
-    const value = settings[field.key]
-    const runtimeValue = toRuntimeFieldValue(field, value)
+    const value = settings[field.key];
+    const runtimeValue = toRuntimeFieldValue(field, value);
 
     if (field.required || runtimeValue !== undefined) {
-      nonSecretSettings[field.key] = runtimeValue
+      nonSecretSettings[field.key] = runtimeValue;
     }
   }
 
-  return nonSecretSettings
+  return nonSecretSettings;
 }
 
 function collectOriginAccessFields(
   fields: readonly ProviderField[],
   settings: ProviderSettingsRecord,
 ): string[] {
-  const origins: string[] = []
+  const origins: string[] = [];
 
   for (const field of fields) {
     if (field.type === "group") {
@@ -191,46 +194,46 @@ function collectOriginAccessFields(
           field.fields,
           getNestedSettings(settings, field.key) ?? {},
         ),
-      )
-      continue
+      );
+      continue;
     }
 
     if (field.type !== "url" || !field.originAccess) {
-      continue
+      continue;
     }
 
-    const value = settings[field.key]
+    const value = settings[field.key];
     if (typeof value === "string" && value) {
-      const origin = normalizeOrigin(value)
+      const origin = normalizeOrigin(value);
       if (origin) {
-        origins.push(origin)
+        origins.push(origin);
       }
     }
   }
 
-  return origins
+  return origins;
 }
 
 function collectSecretSettingPaths(
   fields: readonly ProviderField[],
   path: readonly string[],
 ): string[] {
-  const secretPaths: string[] = []
+  const secretPaths: string[] = [];
 
   for (const field of fields) {
     if (field.type === "group") {
       secretPaths.push(
         ...collectSecretSettingPaths(field.fields, [...path, field.key]),
-      )
-      continue
+      );
+      continue;
     }
 
     if (field.secret) {
-      secretPaths.push(getFieldFormKey(path, field.key))
+      secretPaths.push(getFieldFormKey(path, field.key));
     }
   }
 
-  return secretPaths
+  return secretPaths;
 }
 
 function collectEditableFields(
@@ -238,7 +241,7 @@ function collectEditableFields(
   settings: ProviderSettingsRecord,
   path: string[],
 ) {
-  const fieldValues: ProviderFieldFormValues = {}
+  const fieldValues: ProviderFieldFormValues = {};
 
   for (const field of fields) {
     if (field.type === "group") {
@@ -249,26 +252,26 @@ function collectEditableFields(
           getNestedSettings(settings, field.key) ?? {},
           [...path, field.key],
         ),
-      )
-      continue
+      );
+      continue;
     }
 
-    const formKey = getFieldFormKey(path, field.key)
+    const formKey = getFieldFormKey(path, field.key);
 
     if (field.secret) {
-      fieldValues[formKey] = ""
-      continue
+      fieldValues[formKey] = "";
+      continue;
     }
 
-    const value = settings[field.key]
+    const value = settings[field.key];
     if (isScalarProviderSettingValue(value)) {
-      fieldValues[formKey] = value
+      fieldValues[formKey] = value;
     } else if (field.type === "boolean" && field.required) {
-      fieldValues[formKey] = false
+      fieldValues[formKey] = false;
     }
   }
 
-  return fieldValues
+  return fieldValues;
 }
 
 function toRuntimeFieldValue(
@@ -276,45 +279,45 @@ function toRuntimeFieldValue(
   value: ProviderSettingValue | undefined,
 ) {
   if (field.type === "group" || field.type === "secret") {
-    return undefined
+    return undefined;
   }
 
   if (value === undefined || value === "") {
-    return undefined
+    return undefined;
   }
 
   switch (field.type) {
     case "date":
     case "datetime":
-      return typeof value === "number" ? new Date(value) : undefined
+      return typeof value === "number" ? new Date(value) : undefined;
     case "time":
     case "number":
-      return typeof value === "number" ? value : undefined
+      return typeof value === "number" ? value : undefined;
     case "boolean":
-      return typeof value === "boolean" ? value : undefined
+      return typeof value === "boolean" ? value : undefined;
     case "text":
     case "url":
     case "email":
     case "textarea":
     case "select":
-      return typeof value === "string" ? value : undefined
+      return typeof value === "string" ? value : undefined;
   }
 }
 
 export function getFieldFormKey(path: readonly string[], fieldKey: string) {
-  return [...path, fieldKey].join(".")
+  return [...path, fieldKey].join(".");
 }
 
 function getNestedSettings(
   settings: ProviderSettingsRecord | undefined,
   key: string,
 ): ProviderSettingsRecord | undefined {
-  const value = settings?.[key]
+  const value = settings?.[key];
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined
+    return undefined;
   }
 
-  return value
+  return value;
 }
 
 function isScalarProviderSettingValue(
@@ -324,29 +327,29 @@ function isScalarProviderSettingValue(
     typeof value === "string" ||
     typeof value === "number" ||
     typeof value === "boolean"
-  )
+  );
 }
 
 function isEmptyFormValue(value: ProviderFieldFormValue | undefined) {
-  return value === undefined || value === ""
+  return value === undefined || value === "";
 }
 
 function normalizeOriginSet(origins: readonly string[]) {
   return Array.from(
     new Set(origins.map(normalizeOrigin).filter((origin) => origin !== null)),
-  ).sort()
+  ).sort();
 }
 
 function normalizeOrigin(value: string) {
   try {
-    const url = new URL(value)
+    const url = new URL(value);
     if (url.protocol !== "https:") {
-      return null
+      return null;
     }
     return url.port
       ? `${url.protocol}//${url.hostname.toLowerCase()}:${url.port}`
-      : `${url.protocol}//${url.hostname.toLowerCase()}`
+      : `${url.protocol}//${url.hostname.toLowerCase()}`;
   } catch {
-    return null
+    return null;
   }
 }

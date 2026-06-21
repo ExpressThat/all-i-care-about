@@ -1,52 +1,55 @@
-import { useEffect, useState } from "react"
-import { listen } from "@tauri-apps/api/event"
-import { Pencil, Trash2, Workflow } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { Pencil, Trash2, Workflow } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   getProviderCapabilityDefinition,
   type ProviderCapability,
-} from "@/lib/providers/capabilities"
-import { getProviderPlugin } from "@/lib/providers/registry"
-import type { ProviderField, ProviderInstance } from "@/lib/providers/providerTypes"
-import { getProviderRateLimitUsed } from "@/lib/repositories/repositoryCache"
+} from "@/lib/providers/capabilities";
+import { getProviderPlugin } from "@/lib/providers/registry";
+import type {
+  ProviderField,
+  ProviderInstance,
+} from "@/lib/providers/providerTypes";
+import { getProviderRateLimitUsed } from "@/lib/repositories/repositoryCache";
 
 export function ProviderCard({
   onEdit,
   onRemove,
   provider,
 }: {
-  onEdit: () => void
-  onRemove: () => void
-  provider: ProviderInstance
+  onEdit: () => void;
+  onRemove: () => void;
+  provider: ProviderInstance;
 }) {
-  const plugin = getProviderPlugin(provider.type)
-  const Icon = plugin?.icon ?? Workflow
-  const secretFields = plugin?.fields.filter(isSecretField) ?? []
-  const [rateLimitUsed, setRateLimitUsed] = useState<number | null>(null)
+  const plugin = getProviderPlugin(provider.type);
+  const Icon = plugin?.icon ?? Workflow;
+  const secretFields = plugin?.fields.filter(isSecretField) ?? [];
+  const [rateLimitUsed, setRateLimitUsed] = useState<number | null>(null);
 
   useEffect(() => {
-    void loadRateLimitUsed()
+    void loadRateLimitUsed();
 
-    let unsubscribe: (() => void) | undefined
+    let unsubscribe: (() => void) | undefined;
     void listen<string>("provider-request-log-updated", (event) => {
       if (event.payload === provider.id) {
-        void loadRateLimitUsed()
+        void loadRateLimitUsed();
       }
     }).then((nextUnsubscribe) => {
-      unsubscribe = nextUnsubscribe
-    })
+      unsubscribe = nextUnsubscribe;
+    });
 
     return () => {
-      unsubscribe?.()
-    }
-  }, [provider.id])
+      unsubscribe?.();
+    };
+  }, [provider.id]);
 
   async function loadRateLimitUsed() {
     try {
-      setRateLimitUsed(await getProviderRateLimitUsed(provider.id, 3600))
+      setRateLimitUsed(await getProviderRateLimitUsed(provider.id, 3600));
     } catch (error) {
-      console.warn("Failed to load provider rate-limit usage.", error)
-      setRateLimitUsed(null)
+      console.warn("Failed to load provider rate-limit usage.", error);
+      setRateLimitUsed(null);
     }
   }
 
@@ -121,13 +124,13 @@ export function ProviderCard({
         </span>
       </div>
     </article>
-  )
+  );
 }
 
 function getCapabilityDisplayName(capability: ProviderCapability) {
-  return getProviderCapabilityDefinition(capability)?.displayName ?? capability
+  return getProviderCapabilityDefinition(capability)?.displayName ?? capability;
 }
 
 function isSecretField(field: ProviderField) {
-  return "secret" in field && field.secret === true
+  return "secret" in field && field.secret === true;
 }

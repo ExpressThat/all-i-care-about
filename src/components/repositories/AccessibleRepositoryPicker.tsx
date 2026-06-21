@@ -1,14 +1,14 @@
-import { RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import type { AccessibleRepository } from "@/lib/repositories/repositoryCache"
+} from "@/components/ui/select";
+import type { AccessibleRepository } from "@/lib/repositories/repositoryCache";
 
 export function AccessibleRepositoryPicker({
   loading,
@@ -24,22 +24,22 @@ export function AccessibleRepositoryPicker({
   search,
   selectedFullName,
 }: {
-  loading: boolean
-  onAdd: () => void
-  onRefresh: () => void
-  onSearchChange: (search: string) => void
-  onSelectOpenChange: (open: boolean) => void
-  onSelectedFullNameChange: (fullName: string) => void
-  selectOpen: boolean
-  refreshing: boolean
-  repositories: AccessibleRepository[]
-  saving: boolean
-  search: string
-  selectedFullName: string
+  loading: boolean;
+  onAdd: () => void;
+  onRefresh: () => void;
+  onSearchChange: (search: string) => void;
+  onSelectOpenChange: (open: boolean) => void;
+  onSelectedFullNameChange: (fullName: string) => void;
+  selectOpen: boolean;
+  refreshing: boolean;
+  repositories: AccessibleRepository[];
+  saving: boolean;
+  search: string;
+  selectedFullName: string;
 }) {
   const selectedRepository = repositories.find(
     (repository) => repository.fullName === selectedFullName,
-  )
+  );
 
   return (
     <div className="space-y-3">
@@ -94,5 +94,5 @@ export function AccessibleRepositoryPicker({
         </Button>
       </div>
     </div>
-  )
+  );
 }

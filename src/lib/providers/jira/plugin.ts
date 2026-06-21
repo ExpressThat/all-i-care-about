@@ -1,6 +1,6 @@
-import { Ticket } from "lucide-react"
-import type { ProviderPlugin } from "../providerTypes"
-import { jiraProviderCapabilities } from "./capabilities"
+import { Ticket } from "lucide-react";
+import type { ProviderPlugin } from "../providerTypes";
+import { jiraProviderCapabilities } from "./capabilities";
 
 export const jiraProviderPlugin = {
   type: "jira",
@@ -25,8 +25,8 @@ export const jiraProviderPlugin = {
       secret: true,
       placeholder: "ATATT...",
       description: "Used by the Jira provider to access issues.",
-    }
+    },
   ] as const,
   capabilities: jiraProviderCapabilities,
   providerKinds: ["issue"],
-} satisfies ProviderPlugin
+} satisfies ProviderPlugin;

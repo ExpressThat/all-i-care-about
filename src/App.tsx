@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
-import { Toaster } from "@/components/ui/sonner"
-import { HomePage } from "@/components/home/HomePage"
-import { RepositoriesPage } from "@/components/repositories/RepositoriesPage"
-import { ThemeController } from "@/lib/settings/theme/ThemeController"
+import { Toaster } from "@/components/ui/sonner";
+import { HomePage } from "@/components/home/HomePage";
+import { RepositoriesPage } from "@/components/repositories/RepositoriesPage";
+import { ThemeController } from "@/lib/settings/theme/ThemeController";
 import Layout from "./components/ui/custom/layout";
-import type { AppPage } from "./components/ui/custom/pages"
+import type { AppPage } from "./components/ui/custom/pages";
 
 function App() {
-  const [activePage, setActivePage] = useState<AppPage>("home")
+  const [activePage, setActivePage] = useState<AppPage>("home");
 
   useEffect(() => {
     if (import.meta.env.DEV || !("__TAURI_INTERNALS__" in window)) {
