@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+import { listen } from "@tauri-apps/api/event"
 import { Pencil, Trash2, Workflow } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -6,6 +8,7 @@ import {
 } from "@/lib/providers/capabilities"
 import { getProviderPlugin } from "@/lib/providers/registry"
 import type { ProviderField, ProviderInstance } from "@/lib/providers/providerTypes"
+import { getProviderRateLimitUsed } from "@/lib/repositories/repositoryCache"
 
 export function ProviderCard({
   onEdit,
@@ -19,6 +22,33 @@ export function ProviderCard({
   const plugin = getProviderPlugin(provider.type)
   const Icon = plugin?.icon ?? Workflow
   const secretFields = plugin?.fields.filter(isSecretField) ?? []
+  const [rateLimitUsed, setRateLimitUsed] = useState<number | null>(null)
+
+  useEffect(() => {
+    void loadRateLimitUsed()
+
+    let unsubscribe: (() => void) | undefined
+    void listen<string>("provider-request-log-updated", (event) => {
+      if (event.payload === provider.id) {
+        void loadRateLimitUsed()
+      }
+    }).then((nextUnsubscribe) => {
+      unsubscribe = nextUnsubscribe
+    })
+
+    return () => {
+      unsubscribe?.()
+    }
+  }, [provider.id])
+
+  async function loadRateLimitUsed() {
+    try {
+      setRateLimitUsed(await getProviderRateLimitUsed(provider.id, 3600))
+    } catch (error) {
+      console.warn("Failed to load provider rate-limit usage.", error)
+      setRateLimitUsed(null)
+    }
+  }
 
   return (
     <article className="rounded-lg border bg-card p-4 text-card-foreground">
@@ -83,6 +113,13 @@ export function ProviderCard({
           ))}
         </div>
       ) : null}
+
+      <div className="mt-3 text-xs text-muted-foreground">
+        Rate limit used in the last hour:{" "}
+        <span className="font-medium text-foreground">
+          {rateLimitUsed ?? "Unknown"}
+        </span>
+      </div>
     </article>
   )
 }

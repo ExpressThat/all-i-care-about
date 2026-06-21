@@ -168,10 +168,10 @@ function collectNonSecretFields(
     }
 
     const value = settings[field.key]
-    const implementationValue = toImplementationFieldValue(field, value)
+    const runtimeValue = toRuntimeFieldValue(field, value)
 
-    if (field.required || implementationValue !== undefined) {
-      nonSecretSettings[field.key] = implementationValue
+    if (field.required || runtimeValue !== undefined) {
+      nonSecretSettings[field.key] = runtimeValue
     }
   }
 
@@ -271,7 +271,7 @@ function collectEditableFields(
   return fieldValues
 }
 
-function toImplementationFieldValue(
+function toRuntimeFieldValue(
   field: ProviderField,
   value: ProviderSettingValue | undefined,
 ) {

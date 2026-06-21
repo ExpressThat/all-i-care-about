@@ -4,13 +4,21 @@ import {
     SidebarFooter,
     SidebarGroup,
     SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Cog } from "lucide-react"
+import { Cog, Home, GitPullRequest } from "lucide-react"
+import type { AppPage } from "./pages"
 
 export function AppSidebar({
+    activePage,
     onOpenSettings,
+    onPageChange,
 }: {
+    activePage: AppPage
     onOpenSettings: () => void
+    onPageChange: (page: AppPage) => void
 }) {
     return (
         <Sidebar>
@@ -19,7 +27,28 @@ export function AppSidebar({
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
-                    <p>test</p>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                isActive={activePage === "home"}
+                                onClick={() => onPageChange("home")}
+                                type="button"
+                            >
+                                <Home aria-hidden="true" />
+                                <span>Home</span>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                isActive={activePage === "repositories"}
+                                onClick={() => onPageChange("repositories")}
+                                type="button"
+                            >
+                                <GitPullRequest aria-hidden="true" />
+                                <span>Repositories</span>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
                 </SidebarGroup>
                 <SidebarGroup />
             </SidebarContent>

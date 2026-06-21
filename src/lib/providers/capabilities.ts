@@ -43,22 +43,6 @@ export type ProviderCapabilityForKind<Kind extends ProviderKind> =
 export type ProviderCapabilityForKinds<Kinds extends readonly ProviderKind[]> =
   ProviderCapabilityForKind<Kinds[number]>
 
-export const providerCapabilityImplementations = {
-  PR: ["GetPR", "GetPRs"],
-  Issue: ["GetIssue"],
-} as const satisfies Record<ProviderCapability, readonly string[]>
-
-export type ProviderCapabilityImplementation =
-  (typeof providerCapabilityImplementations)[ProviderCapability][number]
-
-export type ProviderImplementationsForCapability<
-  Capability extends ProviderCapability,
-> = (typeof providerCapabilityImplementations)[Capability][number]
-
-export type ProviderImplementationsForCapabilities<
-  Capabilities extends ProviderCapability,
-> = ProviderImplementationsForCapability<Capabilities>
-
 const providerCapabilities = providerCapabilityDefinitions.map(
   (capability) => capability.shortName,
 )
@@ -74,14 +58,6 @@ export function normalizeProviderCapability(
 ): ProviderCapability | null {
   if (isProviderCapability(value)) {
     return value
-  }
-
-  if (value === "GetPR" || value === "GetPRs") {
-    return "PR"
-  }
-
-  if (value === "GetIssue") {
-    return "Issue"
   }
 
   return null
@@ -112,25 +88,5 @@ export function isCapabilityAllowedForProvider(
   const definition = getProviderCapabilityDefinition(capability)
   return Boolean(
     definition && plugin.providerKinds.includes(definition.providerKind),
-  )
-}
-
-export function getImplementationsForCapability(
-  capability: ProviderCapability,
-) {
-  return providerCapabilityImplementations[capability]
-}
-
-export function getCapabilityForImplementation(
-  implementation: ProviderCapabilityImplementation,
-) {
-  return (
-    providerCapabilityDefinitions.find((definition) => {
-      const implementations = providerCapabilityImplementations[
-        definition.shortName
-      ] as readonly ProviderCapabilityImplementation[]
-
-      return implementations.includes(implementation)
-    })?.shortName ?? null
   )
 }

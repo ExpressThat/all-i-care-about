@@ -7,9 +7,8 @@ export type ProviderType = "github" | "jira"
 /**
  * JSON-safe value that can be persisted in provider settings.
  *
- * Provider implementations do not receive these raw persisted values directly.
- * Use {@link NonSecretProviderSettings} for the runtime shape passed into
- * provider capability methods.
+ * UI helpers should use {@link NonSecretProviderSettings} when they need the
+ * non-secret, rich runtime shape for provider settings.
  */
 export type ProviderSettingValue =
   | string
@@ -34,8 +33,8 @@ export type ProviderInstance<Type extends ProviderType = ProviderType> = {
    * JSON-safe provider settings as stored by Rust.
    *
    * Secret fields may appear here only as encrypted values returned by Rust.
-   * Provider implementation code should use {@link NonSecretProviderSettings}
-   * instead, which omits secrets and converts rich values.
+   * Runtime helpers should use {@link NonSecretProviderSettings} instead,
+   * which omits secrets and converts rich values.
    */
   settings: ProviderSettingsRecord
   /** Capability short names enabled for this instance. */
@@ -45,7 +44,7 @@ export type ProviderInstance<Type extends ProviderType = ProviderType> = {
    *
    * This is written by Rust when saving a provider. Frontend code may display
    * the visible origins but must not treat them as trusted unless Rust verifies
-   * the `sealed` payload during `providerFetch`.
+   * the `sealed` payload before provider-owned Rust requests.
    */
   security?: ProviderSecurity
 }
@@ -172,9 +171,8 @@ export type BooleanProviderField = ProviderFieldBase & {
 /**
  * Provider field for date, time, or datetime values persisted as numbers.
  *
- * `date` and `datetime` values are persisted as epoch milliseconds and exposed
- * to implementations as `Date`. `time` values are milliseconds since midnight
- * and exposed as `number`.
+ * `date` and `datetime` values are persisted as epoch milliseconds and can be
+ * converted to `Date`. `time` values are milliseconds since midnight.
  */
 export type DateTimeProviderField = ProviderFieldBase & {
   /** Date-like field type. */
@@ -195,8 +193,7 @@ export type SelectProviderField = ProviderFieldBase & {
    * Static or lazy option source.
    *
    * Lazy functions can return options synchronously or through a promise. The
-   * selected value is always persisted and exposed to implementations as a
-   * string.
+   * selected value is always persisted as a string.
    */
   options: ProviderSelectOptions
   /** Select fields are never treated as secret values. */
@@ -207,8 +204,8 @@ export type SelectProviderField = ProviderFieldBase & {
  * Provider field for sensitive values that Rust encrypts before persistence.
  *
  * Secret fields are omitted from {@link NonSecretProviderSettings}. Provider
- * implementations can use them only through `context.providerFetch` secret
- * injection metadata.
+ * Rust-owned provider commands can decrypt and use them without exposing them
+ * to frontend code.
  */
 export type SecretProviderField = ProviderFieldBase & {
   /** Secret input field type. */
@@ -241,7 +238,7 @@ export type ScalarNonSecretProviderField =
   | DateTimeProviderField
   | SelectProviderField
 
-/** Any field available to provider implementations after runtime conversion. */
+/** Any non-secret field available after runtime conversion. */
 export type NonSecretProviderField =
   | ScalarNonSecretProviderField
   | ProviderGroupField
@@ -294,7 +291,7 @@ export type ProviderPlugin<
 }
 
 /**
- * Implementation-facing settings with secret fields omitted and rich values converted.
+ * Non-secret settings with secret fields omitted and rich values converted.
  *
  * Required fields become required properties. Optional fields become optional
  * properties. Groups become nested objects. Secret fields are not present.

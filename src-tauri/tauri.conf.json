@@ -33,6 +33,11 @@
     ]
   },
   "plugins": {
+    "sql": {
+      "preload": [
+        "sqlite:aica.db"
+      ]
+    },
     "updater": {
       "pubkey": "",
       "endpoints": []
