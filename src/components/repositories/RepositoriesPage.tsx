@@ -30,16 +30,24 @@ export function RepositoriesPage() {
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeCacheUpdated: (() => void) | undefined;
+    let unsubscribePollCompleted: (() => void) | undefined;
 
     void listen("provider-pr-cache-updated", () => {
       void load();
     }).then((nextUnsubscribe) => {
-      unsubscribe = nextUnsubscribe;
+      unsubscribeCacheUpdated = nextUnsubscribe;
+    });
+
+    void listen("provider-pr-poll-completed", () => {
+      void load();
+    }).then((nextUnsubscribe) => {
+      unsubscribePollCompleted = nextUnsubscribe;
     });
 
     return () => {
-      unsubscribe?.();
+      unsubscribeCacheUpdated?.();
+      unsubscribePollCompleted?.();
     };
   }, []);
 

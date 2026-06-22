@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Settings2, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,22 +33,43 @@ export function IssuesPage() {
     useState<WatchedIssueSource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeSourceIdRef = useRef("");
 
   useEffect(() => {
     void load();
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    activeSourceIdRef.current = activeSourceId;
+  }, [activeSourceId]);
+
+  useEffect(() => {
+    let unsubscribeCacheUpdated: (() => void) | undefined;
+    let unsubscribePollCompleted: (() => void) | undefined;
 
     void listen("provider-issue-cache-updated", () => {
-      void load();
+      console.debug(
+        "provider-issue-cache-updated received",
+        activeSourceIdRef.current,
+      );
+      void load(activeSourceIdRef.current);
     }).then((nextUnsubscribe) => {
-      unsubscribe = nextUnsubscribe;
+      unsubscribeCacheUpdated = nextUnsubscribe;
+    });
+
+    void listen("provider-issue-poll-completed", () => {
+      console.debug(
+        "provider-issue-poll-completed received",
+        activeSourceIdRef.current,
+      );
+      void load(activeSourceIdRef.current);
+    }).then((nextUnsubscribe) => {
+      unsubscribePollCompleted = nextUnsubscribe;
     });
 
     return () => {
-      unsubscribe?.();
+      unsubscribeCacheUpdated?.();
+      unsubscribePollCompleted?.();
     };
   }, []);
 
@@ -78,7 +99,7 @@ export function IssuesPage() {
     }
 
     void loadSource(activeSource.id);
-  }, [activeSource?.id]);
+  }, [activeSource?.id, activeSource?.lastCheckedAt]);
 
   const issuesByStatus = useMemo(() => {
     const grouped = new Map<string, CachedIssue[]>();
@@ -91,11 +112,24 @@ export function IssuesPage() {
   }, [issues]);
   const visibleStatuses = statuses.filter((status) => status.visible);
 
-  async function load() {
+  async function load(preferredSourceId = activeSourceId) {
     setError(null);
     try {
       const sources = await listWatchedIssueSources();
       setWatchedSources(sources);
+      const source =
+        sources.find((source) => source.id === preferredSourceId) ??
+        sources[0];
+
+      if (source) {
+        console.debug("Loading issue source data", source.id, source.displayName);
+        setActiveSourceId(source.id);
+        await loadSource(source.id);
+      } else {
+        setActiveSourceId("");
+        setStatuses([]);
+        setIssues([]);
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -110,6 +144,11 @@ export function IssuesPage() {
         listCachedIssueStatuses(sourceWatchId),
         listCachedIssues(sourceWatchId),
       ]);
+      console.debug("Loaded issue source data", {
+        sourceWatchId,
+        statuses: nextStatuses.length,
+        issues: nextIssues.length,
+      });
       setStatuses(nextStatuses);
       setIssues(nextIssues);
     } catch (error) {
@@ -118,7 +157,7 @@ export function IssuesPage() {
   }
 
   function handleChanged() {
-    void load();
+    void load(activeSourceId);
   }
 
   function openColumnSettings(source: WatchedIssueSource) {

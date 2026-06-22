@@ -152,6 +152,7 @@ pub async fn trigger_provider_pr_poll(app: AppHandle) -> Result<(), String> {
         poll_repository(&app, &pool, &repository).await?;
     }
 
+    let _ = app.emit("provider-pr-poll-completed", row_count);
     log::info!("trigger_provider_pr_poll completed: repositories_polled={row_count}");
     Ok(())
 }

@@ -3,7 +3,7 @@ use super::models::WatchedIssueSource;
 use super::poll::poll_issue_source;
 use crate::repository_cache::db::{db_pool, now_seconds, random_id};
 use sqlx::{Pool, Sqlite};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 #[tauri::command]
 pub async fn list_watched_issue_sources(
@@ -161,6 +161,7 @@ pub async fn trigger_provider_issue_poll(app: AppHandle) -> Result<(), String> {
         poll_issue_source(&app, &pool, &source).await?;
     }
 
+    let _ = app.emit("provider-issue-poll-completed", row_count);
     log::info!("trigger_provider_issue_poll completed: sources_polled={row_count}");
     Ok(())
 }
