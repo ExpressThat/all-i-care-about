@@ -118,11 +118,14 @@ export function IssuesPage() {
       const sources = await listWatchedIssueSources();
       setWatchedSources(sources);
       const source =
-        sources.find((source) => source.id === preferredSourceId) ??
-        sources[0];
+        sources.find((source) => source.id === preferredSourceId) ?? sources[0];
 
       if (source) {
-        console.debug("Loading issue source data", source.id, source.displayName);
+        console.debug(
+          "Loading issue source data",
+          source.id,
+          source.displayName,
+        );
         setActiveSourceId(source.id);
         await loadSource(source.id);
       } else {

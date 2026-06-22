@@ -1,8 +1,5 @@
 import ReactTimeAgo from "react-time-ago";
-import type {
-  CachedIssue,
-  CachedIssueStatus,
-} from "@/lib/issues/issueCache";
+import type { CachedIssue, CachedIssueStatus } from "@/lib/issues/issueCache";
 import { formatDateTime, parseDate } from "./issueUtils";
 
 export function IssueColumn({
@@ -19,9 +16,7 @@ export function IssueColumn({
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold">{status.name}</h3>
             {status.category ? (
-              <p className="text-xs text-muted-foreground">
-                {status.category}
-              </p>
+              <p className="text-xs text-muted-foreground">{status.category}</p>
             ) : null}
           </div>
           <span className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">

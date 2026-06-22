@@ -84,9 +84,7 @@ export function IssueColumnSettingsDialog({
 
   function setAllVisible(visible: boolean) {
     setVisibleStatusIds(
-      visible
-        ? new Set(statuses.map((status) => status.statusId))
-        : new Set(),
+      visible ? new Set(statuses.map((status) => status.statusId)) : new Set(),
     );
   }
 

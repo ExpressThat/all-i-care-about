@@ -23,7 +23,8 @@ export const jiraProviderPlugin = {
       type: "email",
       required: true,
       placeholder: "you@example.com",
-      description: "Used with the Jira API token for Atlassian Cloud authentication.",
+      description:
+        "Used with the Jira API token for Atlassian Cloud authentication.",
     },
     {
       key: "personalAccessToken",
