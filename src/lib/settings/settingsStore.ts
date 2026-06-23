@@ -2,6 +2,7 @@ import { useRef, useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ProviderInstance } from "@/lib/providers/providerTypes";
 import { normalizeProviderCapability } from "@/lib/providers/capabilities";
+import { normalizeProviderType } from "@/lib/providers/providerTypes";
 import {
   DEFAULT_SETTINGS,
   isAppTheme,
@@ -238,8 +239,11 @@ function normalizeSettings(value: Settings): Settings {
 }
 
 function normalizeProvider(provider: ProviderInstance): ProviderInstance {
+  const providerType = normalizeProviderType(provider.type);
+
   return {
     ...provider,
+    type: providerType ?? provider.type,
     enabledCapabilities: Array.from(
       new Set(
         provider.enabledCapabilities

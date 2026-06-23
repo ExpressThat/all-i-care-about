@@ -52,13 +52,21 @@ export function validateUrlField(field: ProviderField, value: string) {
     if (
       field.type === "url" &&
       field.originAccess &&
-      url.protocol !== "https:"
+      url.protocol !== "https:" &&
+      !isLoopbackHttpUrl(url)
     ) {
-      return `${field.label} must use HTTPS because it can receive provider secrets.`;
+      return `${field.label} must use HTTPS unless it is a local development URL.`;
     }
 
     return "";
   } catch {
     return `${field.label} must be a valid URL.`;
   }
+}
+
+function isLoopbackHttpUrl(url: URL) {
+  return (
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase())
+  );
 }

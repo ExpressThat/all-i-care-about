@@ -5,6 +5,7 @@ import {
 import {
   isProviderType,
   isProviderSettingRecord,
+  normalizeProviderType,
   type ProviderInstance,
 } from "./providerTypes";
 
@@ -16,7 +17,8 @@ export function isProviderInstance(value: unknown): value is ProviderInstance {
   const candidate = value as Partial<ProviderInstance>;
   return (
     typeof candidate.id === "string" &&
-    isProviderType(candidate.type) &&
+    (isProviderType(candidate.type) ||
+      normalizeProviderType(candidate.type) !== null) &&
     typeof candidate.displayName === "string" &&
     isProviderSettingRecord(candidate.settings) &&
     Array.isArray(candidate.enabledCapabilities) &&

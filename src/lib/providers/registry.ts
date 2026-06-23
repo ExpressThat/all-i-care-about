@@ -9,8 +9,9 @@ import {
   type ProviderCapability,
   type ProviderKind,
 } from "./capabilities";
+import { atlassianProviderPlugin } from "./atlassian/plugin";
 import { githubProviderPlugin } from "./github/plugin";
-import { jiraProviderPlugin } from "./jira/plugin";
+import { openSearchProviderPlugin } from "./opensearch/plugin";
 import type {
   KnownProviderPlugin,
   ProviderInstance,
@@ -20,7 +21,8 @@ import type {
 
 export const providerPlugins: KnownProviderPlugin[] = [
   githubProviderPlugin,
-  jiraProviderPlugin,
+  atlassianProviderPlugin,
+  openSearchProviderPlugin,
 ];
 
 validateProviderRegistry();

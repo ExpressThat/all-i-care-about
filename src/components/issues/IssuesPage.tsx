@@ -199,7 +199,7 @@ export function IssuesPage() {
             />
             <h3 className="text-sm font-semibold">No issue providers</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Enable the Issue capability on GitHub or Jira to watch issue
+              Enable the Issue capability on GitHub or Atlassian to watch issue
               sources.
             </p>
           </div>
@@ -213,7 +213,7 @@ export function IssuesPage() {
             />
             <h3 className="text-sm font-semibold">No watched issue sources</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Add a repository or Jira project to start caching issues.
+              Add a repository or Atlassian project to start caching issues.
             </p>
             <Button
               className="mt-4"

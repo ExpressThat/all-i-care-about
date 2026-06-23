@@ -343,7 +343,7 @@ function normalizeOriginSet(origins: readonly string[]) {
 function normalizeOrigin(value: string) {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") {
+    if (url.protocol !== "https:" && !isLoopbackHttpUrl(url)) {
       return null;
     }
     return url.port
@@ -352,4 +352,11 @@ function normalizeOrigin(value: string) {
   } catch {
     return null;
   }
+}
+
+function isLoopbackHttpUrl(url: URL) {
+  return (
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase())
+  );
 }

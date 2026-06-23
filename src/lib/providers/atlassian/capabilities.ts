@@ -1,5 +1,5 @@
 import type { ProviderCapabilityForKinds } from "../capabilities";
 
-export const jiraProviderCapabilities = [
+export const atlassianProviderCapabilities = [
   "Issue",
 ] as const satisfies readonly ProviderCapabilityForKinds<["issue"]>[];

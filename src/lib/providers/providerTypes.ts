@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ProviderCapability, ProviderKind } from "./capabilities";
 
 /** Unique identifier for a provider plugin family supported by the app. */
-export type ProviderType = "github" | "jira";
+export type ProviderType = "github" | "atlassian" | "opensearch";
 
 /**
  * JSON-safe value that can be persisted in provider settings.
@@ -20,7 +20,7 @@ export type ProviderSettingValue =
  * Persisted provider configuration instance created by the user.
  *
  * A provider instance represents one configured account/connection, such as a
- * GitHub PAT-backed connection or a future Jira site connection.
+ * GitHub PAT-backed connection or an Atlassian site connection.
  */
 export type ProviderInstance<Type extends ProviderType = ProviderType> = {
   /** Stable instance id used to look up this configured provider. */
@@ -128,7 +128,7 @@ export type TextLikeProviderField = ProviderTextFieldBase & {
  * URL provider field.
  *
  * Set `originAccess: true` only when this URL is the provider API origin that
- * may receive secret-backed requests, such as a Jira site URL.
+ * may receive secret-backed requests, such as an Atlassian site URL.
  */
 export type UrlProviderField = ProviderTextFieldBase & {
   /** URL input field type. */
@@ -346,12 +346,21 @@ export type ProviderPluginForType<Type extends ProviderType> = Extract<
 /** Union of all provider plugins compiled into this frontend bundle. */
 export type KnownProviderPlugin =
   | typeof import("./github/plugin").githubProviderPlugin
-  | typeof import("./jira/plugin").jiraProviderPlugin;
+  | typeof import("./atlassian/plugin").atlassianProviderPlugin
+  | typeof import("./opensearch/plugin").openSearchProviderPlugin;
 
-const providerTypes: ProviderType[] = ["github", "jira"];
+const providerTypes: ProviderType[] = ["github", "atlassian", "opensearch"];
 
 export function isProviderType(value: unknown): value is ProviderType {
   return providerTypes.includes(value as ProviderType);
+}
+
+export function normalizeProviderType(value: unknown): ProviderType | null {
+  if (value === "jira") {
+    return "atlassian";
+  }
+
+  return isProviderType(value) ? value : null;
 }
 
 export function isProviderSettingRecord(

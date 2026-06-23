@@ -1,11 +1,11 @@
 import { Ticket } from "lucide-react";
 import type { ProviderPlugin } from "../providerTypes";
-import { jiraProviderCapabilities } from "./capabilities";
+import { atlassianProviderCapabilities } from "./capabilities";
 
-export const jiraProviderPlugin = {
-  type: "jira",
-  label: "Jira",
-  description: "Connect Jira issues.",
+export const atlassianProviderPlugin = {
+  type: "atlassian",
+  label: "Atlassian",
+  description: "Connect Atlassian issues.",
   icon: Ticket,
   fields: [
     {
@@ -15,7 +15,7 @@ export const jiraProviderPlugin = {
       required: true,
       originAccess: true,
       placeholder: "https://example.atlassian.net",
-      description: "The Jira site origin this provider can contact.",
+      description: "The Atlassian site origin this provider can contact.",
     },
     {
       key: "email",
@@ -24,7 +24,7 @@ export const jiraProviderPlugin = {
       required: true,
       placeholder: "you@example.com",
       description:
-        "Used with the Jira API token for Atlassian Cloud authentication.",
+        "Used with the API token for Atlassian Cloud authentication.",
     },
     {
       key: "personalAccessToken",
@@ -33,9 +33,9 @@ export const jiraProviderPlugin = {
       required: true,
       secret: true,
       placeholder: "ATATT...",
-      description: "Encrypted and used by Rust for Jira API requests.",
+      description: "Encrypted and used by Rust for Atlassian API requests.",
     },
   ] as const,
-  capabilities: jiraProviderCapabilities,
+  capabilities: atlassianProviderCapabilities,
   providerKinds: ["issue"],
 } satisfies ProviderPlugin;

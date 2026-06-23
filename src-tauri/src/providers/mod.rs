@@ -1,14 +1,14 @@
+pub mod atlassian;
 pub mod github;
 pub mod http;
-pub mod jira;
 pub mod types;
 
 use crate::provider_security::metadata::ProviderType;
 use crate::provider_security::{
     get_decrypted_provider_secret, get_provider_setting_string, verify_provider_origin,
 };
+use atlassian::jira::client::JiraClient;
 use github::client::GitHubClient;
-use jira::client::JiraClient;
 use types::{
     ProviderContext, ProviderIssuePage, ProviderIssueSource, ProviderIssueStatus,
     ProviderPullRequestPage, ProviderRepository,
@@ -39,7 +39,7 @@ pub async fn list_accessible_repositories(
             );
             Ok(repositories)
         }
-        ProviderType::Jira => {
+        ProviderType::Atlassian | ProviderType::OpenSearch => {
             log::error!(
                 "Provider list_accessible_repositories unsupported: provider_id={}, provider_type={:?}",
                 context.provider_id,
@@ -88,7 +88,7 @@ pub async fn list_open_pull_requests(
             );
             Ok(page)
         }
-        ProviderType::Jira => {
+        ProviderType::Atlassian | ProviderType::OpenSearch => {
             log::error!(
                 "Provider list_open_pull_requests unsupported: provider_id={}, provider_type={:?}",
                 context.provider_id,
@@ -131,9 +131,9 @@ pub async fn list_accessible_issue_sources(
             );
             Ok(sources)
         }
-        ProviderType::Jira => {
-            let client = jira_client(context)?;
-            let sources = jira::issues::list_accessible_issue_sources(&client).await?;
+        ProviderType::Atlassian => {
+            let client = atlassian_jira_client(context)?;
+            let sources = atlassian::jira::issues::list_accessible_issue_sources(&client).await?;
             log::info!(
                 "Provider list_accessible_issue_sources completed: provider_id={}, provider_type={:?}, results={}",
                 context.provider_id,
@@ -141,6 +141,17 @@ pub async fn list_accessible_issue_sources(
                 sources.len()
             );
             Ok(sources)
+        }
+        ProviderType::OpenSearch => {
+            log::error!(
+                "Provider list_accessible_issue_sources unsupported: provider_id={}, provider_type={:?}",
+                context.provider_id,
+                context.provider_type
+            );
+            Err(format!(
+                "Provider type \"{:?}\" does not support issue sources.",
+                context.provider_type
+            ))
         }
     }
 }
@@ -167,9 +178,9 @@ pub async fn list_issue_statuses(
             );
             Ok(statuses)
         }
-        ProviderType::Jira => {
-            let client = jira_client(context)?;
-            let statuses = jira::issues::list_issue_statuses(&client, source).await?;
+        ProviderType::Atlassian => {
+            let client = atlassian_jira_client(context)?;
+            let statuses = atlassian::jira::issues::list_issue_statuses(&client, source).await?;
             log::info!(
                 "Provider list_issue_statuses completed: provider_id={}, source_key={}, results={}",
                 context.provider_id,
@@ -177,6 +188,17 @@ pub async fn list_issue_statuses(
                 statuses.len()
             );
             Ok(statuses)
+        }
+        ProviderType::OpenSearch => {
+            log::error!(
+                "Provider list_issue_statuses unsupported: provider_id={}, provider_type={:?}",
+                context.provider_id,
+                context.provider_type
+            );
+            Err(format!(
+                "Provider type \"{:?}\" does not support issue statuses.",
+                context.provider_type
+            ))
         }
     }
 }
@@ -213,9 +235,9 @@ pub async fn list_issues(
             );
             Ok(page)
         }
-        ProviderType::Jira => {
-            let client = jira_client(context)?;
-            let page = jira::issues::list_issues(&client, source, etag).await?;
+        ProviderType::Atlassian => {
+            let client = atlassian_jira_client(context)?;
+            let page = atlassian::jira::issues::list_issues(&client, source, etag).await?;
             log::info!(
                 "Provider list_issues completed: provider_id={}, source_key={}, failed={}, not_modified={}, results={}",
                 context.provider_id,
@@ -226,20 +248,40 @@ pub async fn list_issues(
             );
             Ok(page)
         }
+        ProviderType::OpenSearch => {
+            log::error!(
+                "Provider list_issues unsupported: provider_id={}, provider_type={:?}",
+                context.provider_id,
+                context.provider_type
+            );
+            Err(format!(
+                "Provider type \"{:?}\" does not support issues.",
+                context.provider_type
+            ))
+        }
     }
 }
 
-fn jira_client<'a>(context: &'a ProviderContext<'a>) -> Result<JiraClient<'a>, String> {
-    log::debug!("Creating Jira client: provider_id={}", context.provider_id);
-    let api_url =
-        get_provider_setting_string(context.app, context.provider_id, jira::JIRA_API_URL_SETTING)?;
+fn atlassian_jira_client<'a>(context: &'a ProviderContext<'a>) -> Result<JiraClient<'a>, String> {
+    log::debug!(
+        "Creating Atlassian Jira client: provider_id={}",
+        context.provider_id
+    );
+    let api_url = get_provider_setting_string(
+        context.app,
+        context.provider_id,
+        atlassian::jira::JIRA_API_URL_SETTING,
+    )?;
     verify_provider_origin(context.app, context.provider_id, &api_url)?;
-    let email =
-        get_provider_setting_string(context.app, context.provider_id, jira::JIRA_EMAIL_SETTING)?;
+    let email = get_provider_setting_string(
+        context.app,
+        context.provider_id,
+        atlassian::jira::JIRA_EMAIL_SETTING,
+    )?;
     let token = get_decrypted_provider_secret(
         context.app,
         context.provider_id,
-        jira::JIRA_API_TOKEN_SETTING,
+        atlassian::jira::JIRA_API_TOKEN_SETTING,
     )?;
 
     JiraClient::new(

@@ -1,7 +1,7 @@
 import type { ProviderPlugin } from "./providerTypes";
 
 /** Provider domain that a capability belongs to. */
-export type ProviderKind = "git" | "issue";
+export type ProviderKind = "git" | "issue" | "logging";
 
 export const providerCapabilityDefinitions = [
   {
@@ -15,6 +15,12 @@ export const providerCapabilityDefinitions = [
     providerKind: "issue",
     displayName: "Issues",
     description: "Return issue details through the provider contract.",
+  },
+  {
+    shortName: "Logs",
+    providerKind: "logging",
+    displayName: "Logs",
+    description: "Return log entries through the provider contract.",
   },
 ] as const satisfies readonly {
   /** Stable short name persisted on provider instances. */
