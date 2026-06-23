@@ -86,6 +86,28 @@ impl<'a> OpenSearchClient<'a> {
         .await
     }
 
+    pub async fn get_dashboards_api(&self, path_and_query: &str) -> Result<Response, String> {
+        let url = self.dashboards_url(path_and_query)?;
+        let builder = self.apply_auth(
+            self.client
+                .request(Method::GET, url.as_str())
+                .header(reqwest::header::ACCEPT, "application/json")
+                .header(reqwest::header::USER_AGENT, "all-i-care-about")
+                .header("osd-xsrf", "true")
+                .header("kbn-xsrf", "true"),
+        );
+        send_built_provider_request(
+            self.app,
+            self.pool,
+            builder,
+            self.provider_id,
+            "opensearch",
+            Method::GET,
+            url.as_str(),
+        )
+        .await
+    }
+
     pub async fn post_json(&self, path: &str, body: &Value) -> Result<Response, String> {
         let url = self.url(path)?;
         let builder = self.apply_auth(
@@ -129,6 +151,18 @@ impl<'a> OpenSearchClient<'a> {
         self.api_url
             .join(path_and_query.trim_start_matches('/'))
             .map_err(|error| format!("Failed to build OpenSearch URL: {error}"))
+    }
+
+    fn dashboards_url(&self, path_and_query: &str) -> Result<Url, String> {
+        let mut url = self.api_url.clone();
+        let trimmed = path_and_query.trim_start_matches('/');
+        let (path, query) = trimmed
+            .split_once('?')
+            .map_or((trimmed, None), |(path, query)| (path, Some(query)));
+
+        url.set_path(&format!("/_dashboards/{path}"));
+        url.set_query(query);
+        Ok(url)
     }
 }
 

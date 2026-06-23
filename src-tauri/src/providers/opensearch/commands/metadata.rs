@@ -36,6 +36,14 @@ pub async fn list_opensearch_aliases(
         }
     }
 
+    if let Err(error) = add_dashboards_index_patterns(&client, &mut aliases).await {
+        log::warn!(
+            "OpenSearch Dashboards index-pattern lookup failed: provider_id={}, error={}",
+            provider_id,
+            error
+        );
+    }
+
     Ok(aliases
         .into_iter()
         .map(|(alias, mut indices)| {
@@ -43,6 +51,24 @@ pub async fn list_opensearch_aliases(
             LogDataSource { alias, indices }
         })
         .collect())
+}
+
+async fn add_dashboards_index_patterns(
+    client: &super::super::client::OpenSearchClient<'_>,
+    aliases: &mut BTreeMap<String, Vec<String>>,
+) -> Result<(), String> {
+    let body = response_json(
+        client
+            .get_dashboards_api("/api/saved_objects/_find?type=index-pattern&per_page=1000")
+            .await?,
+    )
+    .await?;
+
+    for title in dashboards_index_pattern_titles(&body) {
+        aliases.entry(title).or_default();
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -165,4 +191,45 @@ fn object_entries(value: &Value) -> Result<&Map<String, Value>, String> {
     value
         .as_object()
         .ok_or_else(|| "OpenSearch response was not an object.".to_string())
+}
+
+fn dashboards_index_pattern_titles(body: &Value) -> Vec<String> {
+    body.get("saved_objects")
+        .and_then(Value::as_array)
+        .map(|saved_objects| {
+            saved_objects
+                .iter()
+                .filter_map(|saved_object| {
+                    saved_object
+                        .pointer("/attributes/title")
+                        .and_then(Value::as_str)
+                        .filter(|title| !title.trim().is_empty())
+                        .map(ToString::to_string)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::dashboards_index_pattern_titles;
+    use serde_json::json;
+
+    #[test]
+    fn extracts_dashboards_index_pattern_titles() {
+        let body = json!({
+            "saved_objects": [
+                { "attributes": { "title": "contact-centre*" } },
+                { "attributes": { "title": "crm-*" } },
+                { "attributes": { "title": "" } },
+                { "attributes": {} }
+            ]
+        });
+
+        assert_eq!(
+            dashboards_index_pattern_titles(&body),
+            vec!["contact-centre*", "crm-*"]
+        );
+    }
 }
