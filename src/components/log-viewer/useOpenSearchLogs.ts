@@ -1,0 +1,169 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  listOpenSearchAliases,
+  listOpenSearchFields,
+  searchOpenSearchLogs,
+  type LogDataSource,
+  type LogField,
+  type LogSearchFilter,
+  type LogSearchResult,
+} from "@/lib/providers/opensearch/logs";
+import type { ProviderInstance } from "@/lib/providers/providerTypes";
+import { useSetting } from "@/lib/settings/settingsStore";
+import {
+  defaultLogTimeRange,
+  resolveTimeRange,
+  type LogTimeRange,
+} from "./timeRange";
+
+export function useOpenSearchLogs() {
+  const providers = useSetting("Providers");
+  const logProviders = useMemo(
+    () =>
+      providers.filter(
+        (provider): provider is ProviderInstance<"opensearch"> =>
+          provider.type === "opensearch" &&
+          provider.enabledCapabilities.includes("Logs"),
+      ),
+    [providers],
+  );
+  const [providerId, setProviderId] = useState("");
+  const [aliases, setAliases] = useState<LogDataSource[]>([]);
+  const [selectedAlias, setSelectedAlias] = useState("");
+  const [fields, setFields] = useState<LogField[]>([]);
+  const [filters, setFilters] = useState<LogSearchFilter[]>([]);
+  const [timeRange, setTimeRange] = useState<LogTimeRange>(() =>
+    defaultLogTimeRange(),
+  );
+  const [result, setResult] = useState<LogSearchResult>({
+    logs: [],
+    histogram: [],
+    total: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (logProviders.length === 0) {
+      setProviderId("");
+      return;
+    }
+
+    setProviderId((current) =>
+      logProviders.some((provider) => provider.id === current)
+        ? current
+        : logProviders[0].id,
+    );
+  }, [logProviders]);
+
+  useEffect(() => {
+    setAliases([]);
+    setSelectedAlias("");
+    setFields([]);
+    setFilters([]);
+    if (!providerId) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void listOpenSearchAliases(providerId)
+      .then((nextAliases) => {
+        if (!cancelled) {
+          setAliases(nextAliases);
+          setSelectedAlias(nextAliases[0]?.alias ?? "");
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [providerId]);
+
+  useEffect(() => {
+    setFields([]);
+    setFilters([]);
+    if (!providerId || !selectedAlias) {
+      return;
+    }
+
+    let cancelled = false;
+    setError(null);
+    void listOpenSearchFields(providerId, selectedAlias)
+      .then((nextFields) => {
+        if (!cancelled) {
+          setFields(nextFields);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setError(error instanceof Error ? error.message : String(error));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [providerId, selectedAlias]);
+
+  useEffect(() => {
+    if (providerId && selectedAlias) {
+      void refreshLogs();
+    }
+  }, [providerId, selectedAlias, filters, timeRange]);
+
+  async function refreshLogs() {
+    if (!providerId || !selectedAlias) {
+      return;
+    }
+
+    const resolvedRange = resolveTimeRange(timeRange);
+    setLoading(true);
+    setError(null);
+    try {
+      setResult(
+        await searchOpenSearchLogs(providerId, {
+          alias: selectedAlias,
+          filters,
+          histogramInterval: resolvedRange.histogramInterval,
+          start: resolvedRange.start,
+          end: resolvedRange.end,
+          size: 100,
+        }),
+      );
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return {
+    aliases,
+    error,
+    fields,
+    filters,
+    loading,
+    logProviders,
+    providerId,
+    refreshLogs,
+    result,
+    selectedAlias,
+    setFilters,
+    setProviderId,
+    setSelectedAlias,
+    setTimeRange,
+    timeRange,
+  };
+}

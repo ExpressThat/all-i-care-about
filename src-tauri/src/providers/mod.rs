@@ -1,6 +1,7 @@
 pub mod atlassian;
 pub mod github;
 pub mod http;
+pub mod opensearch;
 pub mod types;
 
 use crate::provider_security::metadata::ProviderType;

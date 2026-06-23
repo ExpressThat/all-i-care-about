@@ -71,7 +71,11 @@ pub fn run() {
             issue_cache::statuses::list_cached_issue_statuses,
             issue_cache::statuses::set_visible_issue_statuses,
             issue_cache::issues::list_cached_issues,
-            issue_cache::watched::trigger_provider_issue_poll
+            issue_cache::watched::trigger_provider_issue_poll,
+            providers::opensearch::commands::metadata::list_opensearch_aliases,
+            providers::opensearch::commands::metadata::list_opensearch_fields,
+            providers::opensearch::commands::metadata::list_opensearch_field_values,
+            providers::opensearch::commands::search::search_opensearch_logs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

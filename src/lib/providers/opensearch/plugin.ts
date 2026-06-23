@@ -14,15 +14,13 @@ const openSearchAuthModes = [
 
 type OpenSearchProviderSettings = ProviderSettingsRecord & {
   apiUrl?: string;
-  indexAlias?: string;
   authMode?: (typeof openSearchAuthModes)[number]["value"];
   username?: string;
   password?: string;
   bearerToken?: string;
 };
 
-const showOpenSearchField =
-  defineProviderFieldShow<OpenSearchProviderSettings>;
+const showOpenSearchField = defineProviderFieldShow<OpenSearchProviderSettings>;
 
 export const openSearchProviderPlugin = {
   type: "opensearch",
@@ -38,14 +36,6 @@ export const openSearchProviderPlugin = {
       originAccess: true,
       placeholder: "http://localhost:9200",
       description: "The OpenSearch origin this provider can contact.",
-    },
-    {
-      key: "indexAlias",
-      label: "Index Alias",
-      type: "text",
-      required: true,
-      placeholder: "dummy-app-logs",
-      description: "The OpenSearch index alias to query for logs.",
     },
     {
       key: "authMode",
