@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner";
@@ -37,6 +38,15 @@ function App() {
   }, []);
   const clearMetricToOpen = useCallback(() => {
     setMetricToOpen(null);
+  }, []);
+
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) {
+      return;
+    }
+    void invoke("start_background_workers").catch((error) => {
+      console.warn("Failed to start background workers", error);
+    });
   }, []);
 
   useEffect(() => {

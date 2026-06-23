@@ -14,6 +14,8 @@ const PROVIDER_SECURITY_VERSION: u8 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
+    #[serde(default, rename = "AutoStart")]
+    pub auto_start: bool,
     #[serde(rename = "Providers")]
     pub providers: Vec<ProviderInstance>,
     #[serde(rename = "Theme")]
@@ -61,6 +63,7 @@ pub struct SealedProviderSecurity {
 
 pub fn default_settings() -> Settings {
     Settings {
+        auto_start: false,
         providers: Vec::new(),
         theme: "System".to_string(),
     }
@@ -88,9 +91,10 @@ pub fn read_settings(app: &AppHandle) -> Result<Settings, String> {
     }
 
     log::debug!(
-        "Read settings: providers={}, theme={}",
+        "Read settings: providers={}, theme={}, auto_start={}",
         settings.providers.len(),
-        settings.theme
+        settings.theme,
+        settings.auto_start
     );
     Ok(settings)
 }
@@ -98,10 +102,11 @@ pub fn read_settings(app: &AppHandle) -> Result<Settings, String> {
 pub fn write_settings(app: &AppHandle, settings: &Settings) -> Result<(), String> {
     let settings_path = settings_path(app)?;
     log::debug!(
-        "Writing settings: path={}, providers={}, theme={}",
+        "Writing settings: path={}, providers={}, theme={}, auto_start={}",
         settings_path.display(),
         settings.providers.len(),
-        settings.theme
+        settings.theme,
+        settings.auto_start
     );
     if let Some(parent) = settings_path.parent() {
         fs::create_dir_all(parent)

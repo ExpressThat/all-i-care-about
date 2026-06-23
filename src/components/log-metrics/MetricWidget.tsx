@@ -9,6 +9,7 @@ import {
   LineChart,
   Pie,
   PieChart,
+  PolarAngleAxis,
   RadialBar,
   RadialBarChart,
   XAxis,
@@ -77,11 +78,13 @@ export function MetricWidget({
   const value = evaluation?.value ?? 0;
   const data = chartDataFor(metrics, title);
   const tableRows = tableRowsFor(metrics);
-  const thresholdValue = primaryMetric?.definition.threshold?.value;
+  const threshold = primaryMetric?.definition.threshold;
+  const thresholdValue = threshold?.enabled ? threshold.value : undefined;
   const gaugeValue =
     thresholdValue && thresholdValue > 0
       ? Math.min(100, Math.round((Math.abs(value) / Math.abs(thresholdValue)) * 100))
       : Math.min(100, Math.max(0, Math.round(Math.abs(value))));
+  const gaugeData = [{ fill: "var(--color-value)", name: "value", value: gaugeValue }];
   const anyTriggered = metrics.some((metric) => metric.latestEvaluation?.triggered);
   const allOk = metrics.length > 0 && metrics.every((metric) => metric.latestEvaluation?.status === "ok");
   const statusTone = anyTriggered
@@ -171,13 +174,27 @@ export function MetricWidget({
           <div className="flex h-full min-h-0 flex-col items-center justify-center">
             <ChartContainer className="h-full max-h-48 w-full" config={chartConfig}>
               <RadialBarChart
-                data={[{ fill: "var(--color-value)", name: "value", value: gaugeValue }]}
+                data={gaugeData}
                 endAngle={0}
                 innerRadius="70%"
                 outerRadius="100%"
                 startAngle={180}
+                barSize={24}
+                cx="50%"
+                cy="70%"
+                maxBarSize={24}
               >
-                <RadialBar background cornerRadius={8} dataKey="value" />
+                <PolarAngleAxis
+                  angleAxisId={0}
+                  domain={[0, 100]}
+                  tick={false}
+                  type="number"
+                />
+                <RadialBar
+                  background
+                  cornerRadius={8}
+                  dataKey="value"
+                />
               </RadialBarChart>
             </ChartContainer>
             <div className="-mt-6 text-center">

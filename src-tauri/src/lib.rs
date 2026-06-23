@@ -5,8 +5,13 @@ mod provider_security;
 mod providers;
 mod repository_cache;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tauri_plugin_sql::{Migration, MigrationKind};
+
+const BACKGROUND_POLL_INTERVAL: Duration = Duration::from_secs(300);
+const BACKGROUND_STARTUP_GRACE: Duration = Duration::from_secs(1);
+static BACKGROUND_WORKERS_STARTED: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,53 +31,24 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_keyring::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:aica.db", migrations())
                 .build(),
         )
-        .setup(|app| {
+        .setup(|_app| {
             log::info!("Application setup started");
-            let app = app.handle().clone();
-            let provider_poll_app = app.clone();
-            let metrics_app = app.clone();
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    log::debug!("Background provider poll cycle started");
-                    if let Err(error) =
-                        repository_cache::trigger_provider_pr_poll(provider_poll_app.clone()).await
-                    {
-                        log::error!("Background PR poll failed: {error}");
-                    }
-                    if let Err(error) =
-                        issue_cache::trigger_provider_issue_poll(provider_poll_app.clone()).await
-                    {
-                        log::error!("Background issue poll failed: {error}");
-                    }
-                    log::debug!("Background provider poll cycle completed");
-                    tokio::time::sleep(Duration::from_secs(300)).await;
-                }
-            });
-            tauri::async_runtime::spawn(async move {
-                log::info!("Background log metric evaluation task started");
-                loop {
-                    log::info!("Background log metric evaluation cycle started");
-                    if let Err(error) =
-                        log_metrics::trigger_log_metric_evaluation(metrics_app.clone()).await
-                    {
-                        log::error!("Background log metric evaluation failed: {error}");
-                    } else {
-                        log::info!("Background log metric evaluation cycle completed");
-                    }
-                    tokio::time::sleep(Duration::from_secs(300)).await;
-                }
-            });
             log::info!("Application setup completed");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             provider_security::get_settings,
             provider_security::set_theme,
+            provider_security::set_auto_start,
             provider_security::save_provider,
             provider_security::remove_provider,
             repository_cache::watched::list_watched_repositories,
@@ -112,10 +88,77 @@ pub fn run() {
             log_metrics::commands::list_log_metric_alert_groups,
             log_metrics::commands::save_log_metric_alert_group,
             log_metrics::commands::delete_log_metric_alert_group,
-            log_metrics::commands::trigger_log_metric_evaluation
+            log_metrics::commands::trigger_log_metric_evaluation,
+            start_background_workers
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn start_background_workers(app: tauri::AppHandle) -> Result<(), String> {
+    if BACKGROUND_WORKERS_STARTED.swap(true, Ordering::SeqCst) {
+        log::debug!("Background workers already started");
+        return Ok(());
+    }
+
+    log::info!("Starting background workers");
+    spawn_background_provider_poll(app.clone());
+    spawn_background_metric_evaluation(app);
+    Ok(())
+}
+
+fn spawn_background_provider_poll(app: tauri::AppHandle) {
+    spawn_background_thread("aica-provider-poll", move || async move {
+        log::info!("Background provider poll task started");
+        tokio::time::sleep(BACKGROUND_STARTUP_GRACE).await;
+        loop {
+            log::debug!("Background provider poll cycle started");
+            if let Err(error) = repository_cache::trigger_provider_pr_poll(app.clone()).await {
+                log::error!("Background PR poll failed: {error}");
+            }
+            if let Err(error) = issue_cache::trigger_provider_issue_poll(app.clone()).await {
+                log::error!("Background issue poll failed: {error}");
+            }
+            log::debug!("Background provider poll cycle completed");
+            tokio::time::sleep(BACKGROUND_POLL_INTERVAL).await;
+        }
+    });
+}
+
+fn spawn_background_metric_evaluation(app: tauri::AppHandle) {
+    spawn_background_thread("aica-log-metrics", move || async move {
+        log::info!("Background log metric evaluation task started");
+        tokio::time::sleep(BACKGROUND_STARTUP_GRACE).await;
+        loop {
+            log::info!("Background log metric evaluation cycle started");
+            if let Err(error) = log_metrics::trigger_log_metric_evaluation(app.clone()).await {
+                log::error!("Background log metric evaluation failed: {error}");
+            } else {
+                log::info!("Background log metric evaluation cycle completed");
+            }
+            tokio::time::sleep(BACKGROUND_POLL_INTERVAL).await;
+        }
+    });
+}
+
+fn spawn_background_thread<F, Fut>(name: &'static str, task: F)
+where
+    F: FnOnce() -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + 'static,
+{
+    if let Err(error) = std::thread::Builder::new()
+        .name(name.to_string())
+        .spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("failed to build background tokio runtime");
+            runtime.block_on(task());
+        })
+    {
+        log::error!("Failed to start background thread {name}: {error}");
+    }
 }
 
 fn migrations() -> Vec<Migration> {
@@ -373,6 +416,16 @@ fn migrations() -> Vec<Migration> {
                 ON log_metric_dashboards(updated_at);
             CREATE INDEX IF NOT EXISTS idx_log_metric_alert_groups_updated_at
                 ON log_metric_alert_groups(updated_at);
+        "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 8,
+            description: "reset_unreleased_log_metric_configs",
+            sql: r#"
+            DELETE FROM log_metric_alert_groups;
+            DELETE FROM log_metric_dashboards;
+            DELETE FROM saved_log_metrics;
         "#,
             kind: MigrationKind::Up,
         },

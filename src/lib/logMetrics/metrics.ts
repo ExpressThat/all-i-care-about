@@ -29,8 +29,6 @@ export type MetricThreshold = {
 
 export type LogMetricQuery = {
   id: string;
-  providerId: string;
-  providerType: ProviderType;
   dataSource: string;
   filters: LogSearchFilter[];
   aggregation: MetricAggregation;
@@ -38,11 +36,23 @@ export type LogMetricQuery = {
   percentile?: number;
 };
 
+export type MetricFormulaConfig =
+  | { type: "single"; queryId: string }
+  | {
+      type: "operation";
+      operation: "sum" | "difference" | "ratio" | "percentage" | "min" | "max" | "average";
+      operands: string[];
+    }
+  | { type: "advanced"; expression: string };
+
 export type LogMetricDefinition = {
+  providerId: string;
+  providerType: ProviderType;
   timeRange: LogTimeRange;
   groupBy: string[];
   queries: LogMetricQuery[];
   formula: string;
+  formulaConfig: MetricFormulaConfig;
   unit?: string;
   threshold?: MetricThreshold;
 };

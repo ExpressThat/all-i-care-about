@@ -17,10 +17,13 @@ pub struct MetricTimeRange {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogMetricDefinition {
+    pub provider_id: String,
+    pub provider_type: ProviderType,
     pub time_range: MetricTimeRange,
     pub group_by: Vec<String>,
     pub queries: Vec<LogMetricQuery>,
     pub formula: String,
+    pub formula_config: MetricFormulaConfig,
     pub unit: Option<String>,
     pub threshold: Option<MetricThreshold>,
 }
@@ -29,8 +32,6 @@ pub struct LogMetricDefinition {
 #[serde(rename_all = "camelCase")]
 pub struct LogMetricQuery {
     pub id: String,
-    pub provider_id: String,
-    pub provider_type: ProviderType,
     pub data_source: String,
     pub filters: Vec<LogSearchFilter>,
     pub aggregation: MetricAggregation,
@@ -48,6 +49,32 @@ pub enum MetricAggregation {
     Max,
     Cardinality,
     Percentile,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum MetricFormulaConfig {
+    Single {
+        #[serde(rename = "queryId")]
+        query_id: String,
+    },
+    Operation {
+        operation: MetricFormulaOperation,
+        operands: Vec<String>,
+    },
+    Advanced { expression: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MetricFormulaOperation {
+    Sum,
+    Difference,
+    Ratio,
+    Percentage,
+    Min,
+    Max,
+    Average,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

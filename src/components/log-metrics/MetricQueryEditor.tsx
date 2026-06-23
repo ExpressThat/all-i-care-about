@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LogFilters } from "@/components/log-viewer/LogFilters";
-import type { ProviderInstance } from "@/lib/providers/providerTypes";
+import type { ProviderType } from "@/lib/providers/providerTypes";
 import {
   listLogMetricDataSources,
   listLogMetricFields,
@@ -30,30 +30,32 @@ const aggregations: MetricAggregation[] = [
 ];
 
 export function MetricQueryEditor({
-  logProviders,
   onChange,
   onRemove,
+  providerId,
+  providerType,
   query,
 }: {
-  logProviders: ProviderInstance<"opensearch">[];
   onChange: (query: LogMetricQuery) => void;
   onRemove: () => void;
+  providerId: string;
+  providerType: ProviderType;
   query: LogMetricQuery;
 }) {
   const [dataSources, setDataSources] = useState<LogDataSource[]>([]);
   const [fields, setFields] = useState<LogField[]>([]);
   const numericFields = useMemo(
-    () => fields.filter((field) => field.aggregatable),
-    [fields],
+    () => fields.filter((field) => field.aggregatable && isAggregationField(query.aggregation, field)),
+    [fields, query.aggregation],
   );
 
   useEffect(() => {
-    if (!query.providerId) {
+    if (!providerId) {
       setDataSources([]);
       return;
     }
     let cancelled = false;
-    void listLogMetricDataSources(query.providerType, query.providerId).then(
+    void listLogMetricDataSources(providerType, providerId).then(
       (sources) => {
         if (cancelled) {
           return;
@@ -67,17 +69,17 @@ export function MetricQueryEditor({
     return () => {
       cancelled = true;
     };
-  }, [query.providerId, query.providerType, query.dataSource]);
+  }, [providerId, providerType, query.dataSource]);
 
   useEffect(() => {
-    if (!query.providerId || !query.dataSource) {
+    if (!providerId || !query.dataSource) {
       setFields([]);
       return;
     }
     let cancelled = false;
     void listLogMetricFields(
-      query.providerType,
-      query.providerId,
+      providerType,
+      providerId,
       query.dataSource,
     ).then((nextFields) => {
       if (!cancelled) {
@@ -87,7 +89,7 @@ export function MetricQueryEditor({
     return () => {
       cancelled = true;
     };
-  }, [query.providerId, query.providerType, query.dataSource]);
+  }, [providerId, providerType, query.dataSource]);
 
   return (
     <div className="grid gap-4 rounded-lg border p-4">
@@ -103,33 +105,6 @@ export function MetricQueryEditor({
             }
             value={query.id}
           />
-        </div>
-        <div className="grid gap-1">
-          <span className="text-xs font-medium text-muted-foreground">
-            Provider
-          </span>
-          <Select
-            onValueChange={(providerId) =>
-              onChange({
-                ...query,
-                dataSource: "",
-                providerId,
-                providerType: "opensearch",
-              })
-            }
-            value={query.providerId}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              {logProviders.map((provider) => (
-                <SelectItem key={provider.id} value={provider.id}>
-                  {provider.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <div className="grid gap-1">
           <span className="text-xs font-medium text-muted-foreground">
@@ -221,9 +196,19 @@ export function MetricQueryEditor({
           fields={fields}
           filters={query.filters}
           onFiltersChange={(filters) => onChange({ ...query, filters })}
-          providerId={query.providerId}
+          providerId={providerId}
         />
       ) : null}
     </div>
   );
+}
+
+function isAggregationField(aggregation: MetricAggregation, field: LogField) {
+  if (aggregation === "cardinality") {
+    return field.aggregatable;
+  }
+  if (aggregation === "count") {
+    return false;
+  }
+  return ["integer", "long", "short", "byte", "float", "double", "half_float", "scaled_float", "date"].includes(field.fieldType);
 }

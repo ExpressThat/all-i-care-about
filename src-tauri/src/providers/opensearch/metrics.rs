@@ -12,12 +12,13 @@ use tauri::AppHandle;
 
 pub async fn execute_metric_query(
     app: &AppHandle,
+    provider_id: &str,
     query: &LogMetricQuery,
     group_by: &[String],
     range: &ResolvedMetricTimeRange,
 ) -> Result<ExecutedMetricQuery, String> {
     let pool = db_pool(app).await?;
-    let client = open_search_client(app, &pool, &query.provider_id)?;
+    let client = open_search_client(app, &pool, provider_id)?;
     let body = response_json(
         client
             .post_json(
@@ -42,6 +43,7 @@ fn metric_body(
 ) -> Result<Value, String> {
     let mut body = json!({
         "size": 0,
+        "track_total_hits": true,
         "query": { "bool": { "filter": filters(query, range) } }
     });
 

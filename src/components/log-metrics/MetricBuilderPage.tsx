@@ -1,5 +1,5 @@
 import { Plus, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MetricQueryEditor } from "./MetricQueryEditor";
+import { MetricFormulaBuilder } from "./MetricFormulaBuilder";
+import { MetricGroupByPicker } from "./MetricGroupByPicker";
 import { MetricPreview } from "./MetricPreview";
 import { MetricTimeRangeControls } from "./MetricTimeRangeControls";
 import {
@@ -22,6 +24,7 @@ import {
 } from "./metricDefaults";
 import {
   evaluateLogMetricPreview,
+  listLogMetricFields,
   saveLogMetric,
   type LogMetricDefinition,
   type LogMetricEvaluation,
@@ -32,6 +35,7 @@ import {
 import type { LogTimeRange } from "@/lib/logSearches/timeRange";
 import { useSetting } from "@/lib/settings/settingsStore";
 import type { ProviderInstance } from "@/lib/providers/providerTypes";
+import type { LogField } from "@/lib/providers/opensearch/logs";
 
 const comparisons: ThresholdComparison[] = ["gt", "gte", "lt", "lte", "eq", "neq"];
 const defaultThreshold = {
@@ -39,6 +43,7 @@ const defaultThreshold = {
   enabled: true,
   value: 0,
 };
+const unitOptions = ["count", "ms", "seconds", "percent", "bytes", "requests", "errors", "custom"];
 
 export function MetricBuilderPage({
   metricToOpen,
@@ -60,6 +65,7 @@ export function MetricBuilderPage({
     defaultMetricDefinition(fallbackProviderId),
   );
   const [preview, setPreview] = useState<LogMetricEvaluation | null>(null);
+  const [groupFields, setGroupFields] = useState<LogField[]>([]);
 
   useEffect(() => {
     if (!metricToOpen) {
@@ -73,7 +79,29 @@ export function MetricBuilderPage({
 
   const threshold = definition.threshold ?? undefined;
   const hasActiveMetric = activeMetric !== null;
-  const canSave = name.trim() && definition.queries.every((query) => query.providerId && query.dataSource);
+  const canSave = Boolean(
+    name.trim() &&
+    definition.providerId &&
+    definition.queries.every(isValidQuery) &&
+    isValidFormula(definition),
+  );
+
+  useEffect(() => {
+    const dataSource = definition.queries.find((query) => query.dataSource)?.dataSource;
+    if (!definition.providerId || !dataSource) {
+      setGroupFields([]);
+      return;
+    }
+    let cancelled = false;
+    void listLogMetricFields(definition.providerType, definition.providerId, dataSource).then((fields) => {
+      if (!cancelled) {
+        setGroupFields(fields);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [definition.providerId, definition.providerType, definition.queries]);
 
   function updateTimeRange(timeRange: LogTimeRange) {
     setDefinition((current) => ({ ...current, timeRange }));
@@ -113,7 +141,7 @@ export function MetricBuilderPage({
     }
   }
 
-  const groupByText = useMemo(() => definition.groupBy.join(", "), [definition.groupBy]);
+  const selectedUnit = unitOptions.includes(definition.unit ?? "") ? definition.unit : "custom";
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -135,46 +163,91 @@ export function MetricBuilderPage({
               <span className="text-xs font-medium text-muted-foreground">Name</span>
               <Input className="w-72" onChange={(event) => setName(event.currentTarget.value)} value={name} />
             </div>
+            <div className="grid gap-1">
+              <span className="text-xs font-medium text-muted-foreground">Provider</span>
+              <Select
+                onValueChange={(providerId) =>
+                  setDefinition((current) => ({
+                    ...current,
+                    providerId,
+                    providerType: "opensearch",
+                    groupBy: [],
+                    queries: current.queries.map((query) => ({
+                      ...query,
+                      dataSource: "",
+                      filters: [],
+                    })),
+                  }))
+                }
+                value={definition.providerId}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {logProviders.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <MetricTimeRangeControls range={definition.timeRange} onChange={updateTimeRange} />
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">Unit</span>
+              <Select
+                onValueChange={(unit) =>
+                  setDefinition((current) => ({ ...current, unit: unit === "custom" ? "" : unit }))
+                }
+                value={selectedUnit}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map((unit) => (
+                    <SelectItem key={unit} value={unit}>
+                      {unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedUnit === "custom" ? (
               <Input
-                className="w-28"
+                className="w-32"
                 onChange={(event) =>
                   setDefinition((current) => ({ ...current, unit: event.currentTarget.value }))
                 }
-                placeholder="count"
+                placeholder="custom unit"
                 value={definition.unit ?? ""}
               />
-            </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">Group by fields</span>
-              <Input
-                className="w-96"
-                onChange={(event) =>
-                  setDefinition((current) => ({
-                    ...current,
-                    groupBy: event.currentTarget.value
-                      .split(",")
-                      .map((value) => value.trim())
-                      .filter(Boolean),
-                  }))
-                }
-                placeholder="service, environment"
-                value={groupByText}
+              <MetricGroupByPicker
+                fields={groupFields}
+                onChange={(groupBy) => setDefinition((current) => ({ ...current, groupBy }))}
+                value={definition.groupBy}
               />
             </div>
             <div className="grid gap-1">
               <span className="text-xs font-medium text-muted-foreground">Formula</span>
-              <Input
-                className="w-72"
-                onChange={(event) =>
-                  setDefinition((current) => ({ ...current, formula: event.currentTarget.value }))
+              <MetricFormulaBuilder
+                formula={definition.formula}
+                formulaConfig={definition.formulaConfig}
+                onFormulaChange={(formula) => setDefinition((current) => ({ ...current, formula }))}
+                onFormulaConfigChange={(formulaConfig) =>
+                  setDefinition((current) => ({
+                    ...current,
+                    formula: formulaConfig.type === "advanced" ? formulaConfig.expression : current.formula,
+                    formulaConfig,
+                  }))
                 }
-                placeholder="A / B * 100"
-                value={definition.formula}
+                queries={definition.queries}
               />
             </div>
           </div>
@@ -183,7 +256,6 @@ export function MetricBuilderPage({
         {definition.queries.map((query, index) => (
           <MetricQueryEditor
             key={`${query.id}-${index}`}
-            logProviders={logProviders}
             onChange={(nextQuery) => updateQuery(index, nextQuery)}
             onRemove={() =>
               setDefinition((current) => ({
@@ -191,6 +263,8 @@ export function MetricBuilderPage({
                 queries: current.queries.filter((_, currentIndex) => currentIndex !== index),
               }))
             }
+            providerId={definition.providerId}
+            providerType={definition.providerType}
             query={query}
           />
         ))}
@@ -280,4 +354,32 @@ export function MetricBuilderPage({
       </section>
     </div>
   );
+}
+
+function isValidQuery(query: LogMetricQuery) {
+  if (!query.id.trim() || !query.dataSource) {
+    return false;
+  }
+  if (query.aggregation === "count") {
+    return true;
+  }
+  return Boolean(query.field);
+}
+
+function isValidFormula(definition: LogMetricDefinition) {
+  const queryIds = new Set(definition.queries.map((query) => query.id));
+  const formula = definition.formulaConfig;
+  if (formula.type === "single") {
+    return queryIds.has(formula.queryId);
+  }
+  if (formula.type === "advanced") {
+    return formula.expression.trim().length > 0;
+  }
+  if (["difference", "ratio", "percentage"].includes(formula.operation)) {
+    return formula.operands.length === 2 && formula.operands.every((operand) => queryIds.has(operand));
+  }
+  if (formula.operands.length < 2) {
+    return false;
+  }
+  return formula.operands.every((operand) => queryIds.has(operand));
 }

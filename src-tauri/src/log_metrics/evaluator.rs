@@ -1,8 +1,8 @@
 use super::formula::evaluate_formula;
 use super::models::{
     AlertGroupRule, ExecutedMetricQuery, LogMetricAlertGroupState, LogMetricDefinition,
-    LogMetricEvaluation, LogMetricGroupValue, MetricStatus, MetricThreshold, MetricTimeRange,
-    ResolvedMetricTimeRange, ThresholdComparison,
+    LogMetricEvaluation, LogMetricGroupValue, MetricFormulaConfig, MetricFormulaOperation,
+    MetricStatus, MetricThreshold, MetricTimeRange, ResolvedMetricTimeRange, ThresholdComparison,
 };
 use crate::provider_security::metadata::ProviderType;
 use crate::providers::opensearch::metrics::execute_metric_query;
@@ -120,30 +120,30 @@ async fn evaluate_inner(
     let range = resolve_time_range(&definition.time_range)?;
     let mut results = Vec::new();
     for query in &definition.queries {
-        results.push(match query.provider_type {
+        results.push(match definition.provider_type {
             ProviderType::OpenSearch => {
-                execute_metric_query(app, query, &definition.group_by, &range).await?
+                execute_metric_query(app, &definition.provider_id, query, &definition.group_by, &range)
+                    .await?
             }
             _ => {
                 return Err(format!(
                     "Provider type {:?} does not support log metrics yet.",
-                    query.provider_type
+                    definition.provider_type
                 ))
             }
         });
     }
 
-    let formula = normalized_formula(definition);
     let query_values = scalar_values(&results);
     let value = if definition.group_by.is_empty() {
-        Some(evaluate_formula(&formula, &query_values)?)
+        Some(evaluate_metric_formula(definition, &query_values)?)
     } else {
         None
     };
     let groups = if definition.group_by.is_empty() {
         Vec::new()
     } else {
-        grouped_values(&results, &formula)
+        grouped_values(results.as_slice(), definition)
     };
 
     Ok(LogMetricEvaluation {
@@ -164,7 +164,7 @@ fn scalar_values(results: &[ExecutedMetricQuery]) -> BTreeMap<String, f64> {
         .collect()
 }
 
-fn grouped_values(results: &[ExecutedMetricQuery], formula: &str) -> Vec<LogMetricGroupValue> {
+fn grouped_values(results: &[ExecutedMetricQuery], definition: &LogMetricDefinition) -> Vec<LogMetricGroupValue> {
     let mut groups: BTreeMap<BTreeMap<String, String>, BTreeMap<String, f64>> = BTreeMap::new();
     for result in results {
         for group in &result.groups {
@@ -180,7 +180,7 @@ fn grouped_values(results: &[ExecutedMetricQuery], formula: &str) -> Vec<LogMetr
         .filter_map(|(key, values)| {
             Some(LogMetricGroupValue {
                 key,
-                value: evaluate_formula(formula, &values).ok()?,
+                value: evaluate_metric_formula(definition, &values).ok()?,
                 triggered: false,
             })
         })
@@ -234,17 +234,87 @@ fn compare(value: f64, threshold: &MetricThreshold) -> bool {
     }
 }
 
-fn normalized_formula(definition: &LogMetricDefinition) -> String {
-    let formula = definition.formula.trim();
-    if !formula.is_empty() {
-        return formula.to_string();
+fn evaluate_metric_formula(
+    definition: &LogMetricDefinition,
+    values: &BTreeMap<String, f64>,
+) -> Result<f64, String> {
+    match &definition.formula_config {
+        MetricFormulaConfig::Single { query_id } => Ok(*values.get(query_id).unwrap_or(&0.0)),
+        MetricFormulaConfig::Advanced { expression } => evaluate_formula(expression, values),
+        MetricFormulaConfig::Operation {
+            operation,
+            operands,
+        } => evaluate_formula_operation(operation, operands, values),
     }
-    definition
-        .queries
-        .first()
-        .map(|query| query.id.clone())
-        .unwrap_or_else(|| "A".to_string())
 }
+
+fn evaluate_formula_operation(
+    operation: &MetricFormulaOperation,
+    operands: &[String],
+    values: &BTreeMap<String, f64>,
+) -> Result<f64, String> {
+    validate_formula_operands(operation, operands)?;
+    let resolved = operands
+        .iter()
+        .map(|operand| *values.get(operand).unwrap_or(&0.0))
+        .collect::<Vec<_>>();
+    match operation {
+        MetricFormulaOperation::Sum => Ok(resolved.iter().sum()),
+        MetricFormulaOperation::Difference => Ok(resolved.first().copied().unwrap_or(0.0) - resolved.get(1).copied().unwrap_or(0.0)),
+        MetricFormulaOperation::Ratio => divide(
+            resolved.first().copied().unwrap_or(0.0),
+            resolved.get(1).copied().unwrap_or(0.0),
+            "ratio",
+        ),
+        MetricFormulaOperation::Percentage => divide(
+            resolved.first().copied().unwrap_or(0.0),
+            resolved.get(1).copied().unwrap_or(0.0),
+            "percentage",
+        ).map(|value| value * 100.0),
+        MetricFormulaOperation::Min => Ok(resolved.into_iter().reduce(f64::min).unwrap_or(0.0)),
+        MetricFormulaOperation::Max => Ok(resolved.into_iter().reduce(f64::max).unwrap_or(0.0)),
+        MetricFormulaOperation::Average => {
+            if resolved.is_empty() {
+                Ok(0.0)
+            } else {
+                Ok(resolved.iter().sum::<f64>() / resolved.len() as f64)
+            }
+        }
+    }
+}
+
+fn validate_formula_operands(
+    operation: &MetricFormulaOperation,
+    operands: &[String],
+) -> Result<(), String> {
+    match operation {
+        MetricFormulaOperation::Difference
+        | MetricFormulaOperation::Ratio
+        | MetricFormulaOperation::Percentage => {
+            if operands.len() != 2 || operands.iter().any(|operand| operand.trim().is_empty()) {
+                return Err(format!("{operation:?} requires exactly two query operands."));
+            }
+        }
+        MetricFormulaOperation::Sum
+        | MetricFormulaOperation::Min
+        | MetricFormulaOperation::Max
+        | MetricFormulaOperation::Average => {
+            if operands.len() < 2 || operands.iter().any(|operand| operand.trim().is_empty()) {
+                return Err(format!("{operation:?} requires at least two query operands."));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn divide(numerator: f64, denominator: f64, label: &str) -> Result<f64, String> {
+    if denominator.abs() < f64::EPSILON {
+        Err(format!("Cannot calculate {label}: denominator is zero."))
+    } else {
+        Ok(numerator / denominator)
+    }
+}
+
 
 fn resolve_time_range(range: &MetricTimeRange) -> Result<ResolvedMetricTimeRange, String> {
     if range.mode == "absolute" {

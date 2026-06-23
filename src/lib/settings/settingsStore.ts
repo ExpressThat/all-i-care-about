@@ -103,17 +103,24 @@ export async function setSetting<K extends SettingsKey>(
 ): Promise<void> {
   await initSettingsStore();
 
-  if (key !== "Theme") {
+  if (key !== "Theme" && key !== "AutoStart") {
     throw new Error(
       `Setting "${String(key)}" must be changed through a Rust command.`,
     );
   }
 
   try {
-    settings = normalizeSettings(
-      await invoke<Settings>("set_theme", { theme: value }),
-    );
-    notify(["Theme"]);
+    if (key === "Theme") {
+      settings = normalizeSettings(
+        await invoke<Settings>("set_theme", { theme: value }),
+      );
+      notify(["Theme"]);
+    } else {
+      settings = normalizeSettings(
+        await invoke<Settings>("set_auto_start", { autoStart: value }),
+      );
+      notify(["AutoStart"]);
+    }
   } catch (error) {
     console.error(`Failed to persist setting "${String(key)}".`, error);
     throw error;
@@ -122,6 +129,9 @@ export async function setSetting<K extends SettingsKey>(
 
 export async function setSettings(patch: Partial<Settings>): Promise<void> {
   await initSettingsStore();
+  if (patch.AutoStart !== undefined) {
+    await setSetting("AutoStart", patch.AutoStart);
+  }
   if (patch.Theme !== undefined) {
     await setSetting("Theme", patch.Theme);
   }
@@ -231,6 +241,10 @@ export function useSettings<T>(
 
 function normalizeSettings(value: Settings): Settings {
   return {
+    AutoStart:
+      typeof value.AutoStart === "boolean"
+        ? value.AutoStart
+        : DEFAULT_SETTINGS.AutoStart,
     Providers: Array.isArray(value.Providers)
       ? value.Providers.map(normalizeProvider)
       : [],
