@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,16 +15,19 @@ import {
   type RelativeTimeUnit,
   resolveTimeRange,
   toDatetimeLocalValue,
-} from "./timeRange";
+} from "@/lib/logSearches/timeRange";
 
 const relativeUnits: RelativeTimeUnit[] = ["minutes", "hours", "days"];
 
 export function LogToolbar({
   aliases,
+  hasActiveSavedSearch,
   loading,
   onAliasChange,
   onProviderChange,
   onRefresh,
+  onSaveAsNew,
+  onSaveSearch,
   onTimeRangeChange,
   providerId,
   providers,
@@ -32,10 +35,13 @@ export function LogToolbar({
   timeRange,
 }: {
   aliases: LogDataSource[];
+  hasActiveSavedSearch: boolean;
   loading: boolean;
   onAliasChange: (alias: string) => void;
   onProviderChange: (providerId: string) => void;
   onRefresh: () => void;
+  onSaveAsNew: () => void;
+  onSaveSearch: () => void;
   onTimeRangeChange: (range: LogTimeRange) => void;
   providerId: string;
   providers: ProviderInstance<"opensearch">[];
@@ -193,6 +199,25 @@ export function LogToolbar({
           <RefreshCw aria-hidden="true" className="size-4" />
           Refresh
         </Button>
+        <Button
+          disabled={!providerId || !selectedAlias}
+          onClick={onSaveSearch}
+          type="button"
+          variant="outline"
+        >
+          <Save aria-hidden="true" className="size-4" />
+          {hasActiveSavedSearch ? "Update search" : "Save search"}
+        </Button>
+        {hasActiveSavedSearch ? (
+          <Button
+            disabled={!providerId || !selectedAlias}
+            onClick={onSaveAsNew}
+            type="button"
+            variant="ghost"
+          >
+            Save as new
+          </Button>
+        ) : null}
       </div>
       <p className="text-xs text-muted-foreground">{resolved.label}</p>
     </div>

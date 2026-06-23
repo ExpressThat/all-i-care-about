@@ -1,17 +1,30 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner";
 import { HomePage } from "@/components/home/HomePage";
 import { IssuesPage } from "@/components/issues/IssuesPage";
 import { LogsPage } from "@/components/log-viewer/LogsPage";
+import { SavedSearchesPage } from "@/components/log-viewer/SavedSearchesPage";
 import { RepositoriesPage } from "@/components/repositories/RepositoriesPage";
+import type { SavedLogSearch } from "@/lib/logSearches/savedSearches";
 import { ThemeController } from "@/lib/settings/theme/ThemeController";
 import Layout from "./components/ui/custom/layout";
 import type { AppPage } from "./components/ui/custom/pages";
 
 function App() {
   const [activePage, setActivePage] = useState<AppPage>("home");
+  const [savedSearchToOpen, setSavedSearchToOpen] =
+    useState<SavedLogSearch | null>(null);
+
+  const openSavedSearch = useCallback((savedSearch: SavedLogSearch) => {
+    setSavedSearchToOpen(savedSearch);
+    setActivePage("logs");
+  }, []);
+
+  const clearSavedSearchToOpen = useCallback(() => {
+    setSavedSearchToOpen(null);
+  }, []);
 
   useEffect(() => {
     if (import.meta.env.DEV || !("__TAURI_INTERNALS__" in window)) {
@@ -45,7 +58,12 @@ function App() {
         ) : activePage === "issues" ? (
           <IssuesPage />
         ) : activePage === "logs" ? (
-          <LogsPage />
+          <LogsPage
+            onSavedSearchApplied={clearSavedSearchToOpen}
+            savedSearchToOpen={savedSearchToOpen}
+          />
+        ) : activePage === "saved-log-searches" ? (
+          <SavedSearchesPage onOpenSavedSearch={openSavedSearch} />
         ) : (
           <HomePage />
         )}

@@ -21,10 +21,12 @@ import {
   Cog,
   GitPullRequest,
   Home,
+  Bookmark,
   ScrollText,
   Search,
   Ticket,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { AppPage } from "./pages";
 
 export function AppSidebar({
@@ -36,6 +38,14 @@ export function AppSidebar({
   onOpenSettings: () => void;
   onPageChange: (page: AppPage) => void;
 }) {
+  const [logsAccordionValue, setLogsAccordionValue] = useState("");
+
+  useEffect(() => {
+    if (activePage === "logs" || activePage === "saved-log-searches") {
+      setLogsAccordionValue("logs");
+    }
+  }, [activePage]);
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -78,8 +88,9 @@ export function AppSidebar({
               <Accordion
                 className="w-full"
                 collapsible
-                defaultValue={activePage === "logs" ? "logs" : undefined}
+                onValueChange={setLogsAccordionValue}
                 type="single"
+                value={logsAccordionValue}
               >
                 <AccordionItem className="border-0" value="logs">
                   <AccordionTrigger className="h-8 rounded-md px-2 py-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:no-underline [&>svg]:size-4">
@@ -101,6 +112,20 @@ export function AppSidebar({
                           >
                             <Search aria-hidden="true" />
                             <span>Logs screen</span>
+                          </button>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={activePage === "saved-log-searches"}
+                        >
+                          <button
+                            onClick={() => onPageChange("saved-log-searches")}
+                            type="button"
+                          >
+                            <Bookmark aria-hidden="true" />
+                            <span>Saved searches</span>
                           </button>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

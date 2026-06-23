@@ -1,1 +1,6 @@
-export type AppPage = "home" | "repositories" | "issues" | "logs";
+export type AppPage =
+  | "home"
+  | "repositories"
+  | "issues"
+  | "logs"
+  | "saved-log-searches";

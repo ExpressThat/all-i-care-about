@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   listOpenSearchAliases,
   listOpenSearchFields,
@@ -14,9 +14,16 @@ import {
   defaultLogTimeRange,
   resolveTimeRange,
   type LogTimeRange,
-} from "./timeRange";
+} from "@/lib/logSearches/timeRange";
+import type { SavedLogSearch } from "@/lib/logSearches/savedSearches";
 
-export function useOpenSearchLogs() {
+export function useOpenSearchLogs({
+  openedSavedSearch,
+  onOpenedSavedSearchApplied,
+}: {
+  openedSavedSearch?: SavedLogSearch | null;
+  onOpenedSavedSearchApplied?: () => void;
+} = {}) {
   const providers = useSetting("Providers");
   const logProviders = useMemo(
     () =>
@@ -42,6 +49,21 @@ export function useOpenSearchLogs() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeSavedSearch, setActiveSavedSearch] =
+    useState<SavedLogSearch | null>(null);
+  const pendingSavedSearchRef = useRef<SavedLogSearch | null>(null);
+
+  useEffect(() => {
+    if (!openedSavedSearch) {
+      return;
+    }
+
+    pendingSavedSearchRef.current = openedSavedSearch;
+    setActiveSavedSearch(openedSavedSearch);
+    setTimeRange(openedSavedSearch.timeRange);
+    setProviderId(openedSavedSearch.providerId);
+    onOpenedSavedSearchApplied?.();
+  }, [openedSavedSearch, onOpenedSavedSearchApplied]);
 
   useEffect(() => {
     if (logProviders.length === 0) {
@@ -57,10 +79,17 @@ export function useOpenSearchLogs() {
   }, [logProviders]);
 
   useEffect(() => {
+    const pendingSavedSearch = pendingSavedSearchRef.current;
+    const isApplyingSavedSearch =
+      pendingSavedSearch?.providerId === providerId;
+    const hasPendingSavedSearch = pendingSavedSearch !== null;
+
     setAliases([]);
     setSelectedAlias("");
     setFields([]);
-    setFilters([]);
+    if (!isApplyingSavedSearch && !hasPendingSavedSearch) {
+      setFilters([]);
+    }
     if (!providerId) {
       return;
     }
@@ -71,8 +100,11 @@ export function useOpenSearchLogs() {
     void listOpenSearchAliases(providerId)
       .then((nextAliases) => {
         if (!cancelled) {
+          const nextAlias = isApplyingSavedSearch
+            ? pendingSavedSearch.dataSource
+            : (nextAliases[0]?.alias ?? "");
           setAliases(nextAliases);
-          setSelectedAlias(nextAliases[0]?.alias ?? "");
+          setSelectedAlias(nextAlias);
         }
       })
       .catch((error) => {
@@ -92,8 +124,22 @@ export function useOpenSearchLogs() {
   }, [providerId]);
 
   useEffect(() => {
+    const pendingSavedSearch = pendingSavedSearchRef.current;
+    const isApplyingSavedSearch =
+      pendingSavedSearch?.providerId === providerId &&
+      pendingSavedSearch.dataSource === selectedAlias;
+    const isWaitingForSavedSearchAlias =
+      pendingSavedSearch?.providerId === providerId;
+    const hasPendingSavedSearch = pendingSavedSearch !== null;
+
     setFields([]);
-    setFilters([]);
+    if (
+      !isApplyingSavedSearch &&
+      !isWaitingForSavedSearchAlias &&
+      !hasPendingSavedSearch
+    ) {
+      setFilters([]);
+    }
     if (!providerId || !selectedAlias) {
       return;
     }
@@ -104,6 +150,10 @@ export function useOpenSearchLogs() {
       .then((nextFields) => {
         if (!cancelled) {
           setFields(nextFields);
+          if (isApplyingSavedSearch) {
+            setFilters(pendingSavedSearch.filters);
+            pendingSavedSearchRef.current = null;
+          }
         }
       })
       .catch((error) => {
@@ -165,5 +215,7 @@ export function useOpenSearchLogs() {
     setSelectedAlias,
     setTimeRange,
     timeRange,
+    activeSavedSearch,
+    setActiveSavedSearch,
   };
 }

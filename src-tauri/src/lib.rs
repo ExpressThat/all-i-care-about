@@ -1,4 +1,5 @@
 mod issue_cache;
+mod log_searches;
 mod provider_security;
 mod providers;
 mod repository_cache;
@@ -75,7 +76,11 @@ pub fn run() {
             providers::opensearch::commands::metadata::list_opensearch_aliases,
             providers::opensearch::commands::metadata::list_opensearch_fields,
             providers::opensearch::commands::metadata::list_opensearch_field_values,
-            providers::opensearch::commands::search::search_opensearch_logs
+            providers::opensearch::commands::search::search_opensearch_logs,
+            log_searches::saved_searches::list_saved_log_searches,
+            log_searches::saved_searches::save_log_search,
+            log_searches::saved_searches::rename_saved_log_search,
+            log_searches::saved_searches::delete_saved_log_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -275,6 +280,27 @@ fn migrations() -> Vec<Migration> {
 
             CREATE INDEX IF NOT EXISTS idx_hidden_issue_statuses_source_watch_id
                 ON hidden_issue_statuses(source_watch_id);
+        "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 6,
+            description: "create_saved_log_searches",
+            sql: r#"
+            CREATE TABLE IF NOT EXISTS saved_log_searches (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                provider_type TEXT NOT NULL,
+                data_source TEXT NOT NULL,
+                time_range_json TEXT NOT NULL,
+                filters_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_saved_log_searches_provider_id
+                ON saved_log_searches(provider_id);
         "#,
             kind: MigrationKind::Up,
         },

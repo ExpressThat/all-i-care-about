@@ -22,7 +22,9 @@ export default function Layout({
         onOpenSettings={() => setSettingsOpen(true)}
         onPageChange={onPageChange}
       />
-      <main className="min-w-0 flex-1 bg-background">{children}</main>
+      <main className="h-svh min-w-0 flex-1 overflow-hidden bg-background">
+        {children}
+      </main>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </SidebarProvider>
   );

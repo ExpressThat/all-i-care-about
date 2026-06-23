@@ -1,12 +1,31 @@
 import { ScrollText } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { LogFilters } from "@/components/log-viewer/LogFilters";
 import { LogHistogram } from "@/components/log-viewer/LogHistogram";
 import { LogResults } from "@/components/log-viewer/LogResults";
 import { LogToolbar } from "@/components/log-viewer/LogToolbar";
+import { OpenSavedSearchIndicator } from "@/components/log-viewer/OpenSavedSearchIndicator";
+import { SaveLogSearchDialog } from "@/components/log-viewer/SaveLogSearchDialog";
+import {
+  saveLogSearch,
+  type SavedLogSearch,
+} from "@/lib/logSearches/savedSearches";
 import { useOpenSearchLogs } from "./useOpenSearchLogs";
 
-export function LogsPage() {
+type SaveDialogMode = "create" | "copy";
+
+export function LogsPage({
+  onSavedSearchApplied,
+  savedSearchToOpen,
+}: {
+  onSavedSearchApplied?: () => void;
+  savedSearchToOpen?: SavedLogSearch | null;
+}) {
+  const [saveDialogMode, setSaveDialogMode] =
+    useState<SaveDialogMode | null>(null);
   const {
+    activeSavedSearch,
     aliases,
     error,
     fields,
@@ -20,17 +39,55 @@ export function LogsPage() {
     setFilters,
     setProviderId,
     setSelectedAlias,
+    setActiveSavedSearch,
     setTimeRange,
     timeRange,
-  } = useOpenSearchLogs();
+  } = useOpenSearchLogs({
+    openedSavedSearch: savedSearchToOpen,
+    onOpenedSavedSearchApplied: onSavedSearchApplied,
+  });
+
+  async function saveCurrentSearch(name: string, id?: string) {
+    try {
+      const savedSearch = await saveLogSearch({
+        id,
+        name,
+        providerId,
+        providerType: "opensearch",
+        dataSource: selectedAlias,
+        timeRange,
+        filters,
+      });
+      setActiveSavedSearch(savedSearch);
+      setSaveDialogMode(null);
+      toast.success("Saved log search");
+      return savedSearch;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }
+
+  async function updateSearch() {
+    if (!activeSavedSearch) {
+      setSaveDialogMode("create");
+      return;
+    }
+    await saveCurrentSearch(activeSavedSearch.name, activeSavedSearch.id);
+  }
+
+  async function saveNamedSearch(name: string) {
+    await saveCurrentSearch(name);
+  }
 
   return (
-    <div className="flex h-svh min-w-0 flex-col">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden">
       <header className="border-b px-6 py-4">
         <h2 className="text-lg font-semibold">Logs</h2>
         <p className="text-sm text-muted-foreground">
           View configured logging provider output.
         </p>
+        <OpenSavedSearchIndicator savedSearch={activeSavedSearch} />
       </header>
 
       {logProviders.length === 0 ? (
@@ -48,13 +105,16 @@ export function LogsPage() {
           </div>
         </section>
       ) : (
-        <>
+        <div className="themed-scrollbar min-h-0 flex-1 overflow-y-auto">
           <LogToolbar
             aliases={aliases}
+            hasActiveSavedSearch={activeSavedSearch !== null}
             loading={loading}
             onAliasChange={setSelectedAlias}
             onProviderChange={setProviderId}
             onRefresh={() => void refreshLogs()}
+            onSaveAsNew={() => setSaveDialogMode("copy")}
+            onSaveSearch={() => void updateSearch()}
             onTimeRangeChange={setTimeRange}
             providerId={providerId}
             providers={logProviders}
@@ -70,7 +130,7 @@ export function LogsPage() {
               providerId={providerId}
             />
           ) : null}
-          <section className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-6">
+          <section className="grid min-h-0 gap-4 p-6">
             {error ? (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
@@ -95,8 +155,22 @@ export function LogsPage() {
               </>
             )}
           </section>
-        </>
+        </div>
       )}
+      <SaveLogSearchDialog
+        defaultName={
+          saveDialogMode === "copy" && activeSavedSearch
+            ? `${activeSavedSearch.name} copy`
+            : ""
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setSaveDialogMode(null);
+          }
+        }}
+        onSave={(name) => void saveNamedSearch(name)}
+        open={saveDialogMode !== null}
+      />
     </div>
   );
 }
