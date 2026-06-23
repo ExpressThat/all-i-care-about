@@ -47,7 +47,7 @@ pub struct LogSearchRequest {
     pub size: Option<usize>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogSearchFilter {
     pub field: String,
@@ -55,7 +55,7 @@ pub struct LogSearchFilter {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LogFilterOperator {
     Is,

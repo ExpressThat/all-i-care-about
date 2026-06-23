@@ -1,4 +1,5 @@
 mod client;
 pub mod commands;
-mod models;
+pub mod metrics;
+pub mod models;
 mod query;

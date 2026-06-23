@@ -1,4 +1,5 @@
 mod issue_cache;
+mod log_metrics;
 mod log_searches;
 mod provider_security;
 mod providers;
@@ -24,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_keyring::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(
             tauri_plugin_sql::Builder::new()
                 .add_migrations("sqlite:aica.db", migrations())
@@ -32,19 +34,36 @@ pub fn run() {
         .setup(|app| {
             log::info!("Application setup started");
             let app = app.handle().clone();
+            let provider_poll_app = app.clone();
+            let metrics_app = app.clone();
             tauri::async_runtime::spawn(async move {
                 loop {
                     log::debug!("Background provider poll cycle started");
                     if let Err(error) =
-                        repository_cache::trigger_provider_pr_poll(app.clone()).await
+                        repository_cache::trigger_provider_pr_poll(provider_poll_app.clone()).await
                     {
                         log::error!("Background PR poll failed: {error}");
                     }
-                    if let Err(error) = issue_cache::trigger_provider_issue_poll(app.clone()).await
+                    if let Err(error) =
+                        issue_cache::trigger_provider_issue_poll(provider_poll_app.clone()).await
                     {
                         log::error!("Background issue poll failed: {error}");
                     }
                     log::debug!("Background provider poll cycle completed");
+                    tokio::time::sleep(Duration::from_secs(300)).await;
+                }
+            });
+            tauri::async_runtime::spawn(async move {
+                log::info!("Background log metric evaluation task started");
+                loop {
+                    log::info!("Background log metric evaluation cycle started");
+                    if let Err(error) =
+                        log_metrics::trigger_log_metric_evaluation(metrics_app.clone()).await
+                    {
+                        log::error!("Background log metric evaluation failed: {error}");
+                    } else {
+                        log::info!("Background log metric evaluation cycle completed");
+                    }
                     tokio::time::sleep(Duration::from_secs(300)).await;
                 }
             });
@@ -80,7 +99,20 @@ pub fn run() {
             log_searches::saved_searches::list_saved_log_searches,
             log_searches::saved_searches::save_log_search,
             log_searches::saved_searches::rename_saved_log_search,
-            log_searches::saved_searches::delete_saved_log_search
+            log_searches::saved_searches::delete_saved_log_search,
+            log_metrics::commands::list_saved_log_metrics,
+            log_metrics::commands::save_log_metric,
+            log_metrics::commands::rename_saved_log_metric,
+            log_metrics::commands::delete_saved_log_metric,
+            log_metrics::commands::evaluate_log_metric,
+            log_metrics::commands::evaluate_log_metric_preview,
+            log_metrics::commands::list_log_metric_dashboards,
+            log_metrics::commands::save_log_metric_dashboard,
+            log_metrics::commands::delete_log_metric_dashboard,
+            log_metrics::commands::list_log_metric_alert_groups,
+            log_metrics::commands::save_log_metric_alert_group,
+            log_metrics::commands::delete_log_metric_alert_group,
+            log_metrics::commands::trigger_log_metric_evaluation
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -301,6 +333,46 @@ fn migrations() -> Vec<Migration> {
 
             CREATE INDEX IF NOT EXISTS idx_saved_log_searches_provider_id
                 ON saved_log_searches(provider_id);
+        "#,
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 7,
+            description: "create_log_metrics",
+            sql: r#"
+            CREATE TABLE IF NOT EXISTS saved_log_metrics (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                definition_json TEXT NOT NULL,
+                latest_evaluation_json TEXT,
+                last_evaluated_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS log_metric_dashboards (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                definition_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS log_metric_alert_groups (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                definition_json TEXT NOT NULL,
+                latest_state_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_saved_log_metrics_updated_at
+                ON saved_log_metrics(updated_at);
+            CREATE INDEX IF NOT EXISTS idx_log_metric_dashboards_updated_at
+                ON log_metric_dashboards(updated_at);
+            CREATE INDEX IF NOT EXISTS idx_log_metric_alert_groups_updated_at
+                ON log_metric_alert_groups(updated_at);
         "#,
             kind: MigrationKind::Up,
         },

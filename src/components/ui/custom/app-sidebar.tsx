@@ -22,6 +22,9 @@ import {
   GitPullRequest,
   Home,
   Bookmark,
+  Bell,
+  Gauge,
+  LayoutDashboard,
   ScrollText,
   Search,
   Ticket,
@@ -41,7 +44,14 @@ export function AppSidebar({
   const [logsAccordionValue, setLogsAccordionValue] = useState("");
 
   useEffect(() => {
-    if (activePage === "logs" || activePage === "saved-log-searches") {
+    if (
+      activePage === "logs" ||
+      activePage === "saved-log-searches" ||
+      activePage === "log-metrics" ||
+      activePage === "saved-log-metrics" ||
+      activePage === "log-metric-dashboards" ||
+      activePage === "log-metric-alerts"
+    ) {
       setLogsAccordionValue("logs");
     }
   }, [activePage]);
@@ -126,6 +136,38 @@ export function AppSidebar({
                           >
                             <Bookmark aria-hidden="true" />
                             <span>Saved searches</span>
+                          </button>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={activePage === "log-metrics"}>
+                          <button onClick={() => onPageChange("log-metrics")} type="button">
+                            <Gauge aria-hidden="true" />
+                            <span>Metrics</span>
+                          </button>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={activePage === "saved-log-metrics"}>
+                          <button onClick={() => onPageChange("saved-log-metrics")} type="button">
+                            <Bookmark aria-hidden="true" />
+                            <span>Saved metrics</span>
+                          </button>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={activePage === "log-metric-dashboards"}>
+                          <button onClick={() => onPageChange("log-metric-dashboards")} type="button">
+                            <LayoutDashboard aria-hidden="true" />
+                            <span>Dashboards</span>
+                          </button>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={activePage === "log-metric-alerts"}>
+                          <button onClick={() => onPageChange("log-metric-alerts")} type="button">
+                            <Bell aria-hidden="true" />
+                            <span>Metric alerts</span>
                           </button>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
