@@ -1,0 +1,87 @@
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    container_name: all-i-care-about-opensearch
+    environment:
+      - cluster.name=all-i-care-about-dev
+      - node.name=opensearch-dev
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=DevOnlyPassword123!
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.1
+    container_name: all-i-care-about-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  opensearch-bootstrap:
+    image: curlimages/curl:8.11.1
+    container_name: all-i-care-about-opensearch-bootstrap
+    volumes:
+      - ./docker/opensearch/init-index.sh:/init-index.sh:ro
+    command: ["sh", "/init-index.sh"]
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: "no"
+
+  dashboards-bootstrap:
+    image: curlimages/curl:8.11.1
+    container_name: all-i-care-about-dashboards-bootstrap
+    environment:
+      - DASHBOARDS_URL=http://opensearch-dashboards:5601
+      - DASHBOARDS_INDEX_PATTERN_ID=dummy-app-logs
+      - DASHBOARDS_INDEX_PATTERN_TITLE=dummy-app-logs
+      - DASHBOARDS_TIME_FIELD=@timestamp
+    volumes:
+      - ./docker/opensearch/init-dashboards.sh:/init-dashboards.sh:ro
+    command: ["sh", "/init-dashboards.sh"]
+    depends_on:
+      opensearch-bootstrap:
+        condition: service_completed_successfully
+      opensearch-dashboards:
+        condition: service_started
+    restart: "no"
+
+  dummy-logger:
+    build:
+      context: ./docker/dummy-logger
+    container_name: all-i-care-about-dummy-logger
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - LOG_INDEX_ALIAS=dummy-app-logs
+      - SERVICE_NAME=dummy-application
+      - LOG_INTERVAL_MS=1000
+    depends_on:
+      dashboards-bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  opensearch-data:

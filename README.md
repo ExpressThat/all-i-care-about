@@ -61,3 +61,26 @@ Dynamic provider origins must come from fields marked with `originAccess: true`.
 - If the normalized origin list changes, Rust clears any preserved old secrets unless the user entered replacement secrets in the same save.
 
 Enabled provider capabilities are not part of the security seal. Changing capabilities such as `GetPR` or `GetIssue` does not clear provider secrets or require a new token.
+
+## Local OpenSearch Logging Sandbox
+
+Use the local Docker Compose stack to test an OpenSearch logging provider with a single-node OpenSearch cluster, OpenSearch Dashboards, and a dummy application that emits debug, info, warning, and error logs every second.
+
+```sh
+docker compose -f docker-compose.opensearch.yml up --build
+```
+
+- OpenSearch: http://localhost:9200
+- OpenSearch Dashboards: http://localhost:5601
+- Write/read alias: `dummy-app-logs`
+- Backing index: `dummy-app-logs-000001`
+- Index template: `dummy-app-logs-template`
+- Dashboards data view: `dummy-app-logs`
+
+The bootstrap containers create the `dummy-app-logs` OpenSearch write alias and a matching Dashboards data view with `@timestamp` as the time field before the logger starts.
+
+To reset the dummy cluster data:
+
+```sh
+docker compose -f docker-compose.opensearch.yml down -v
+```
