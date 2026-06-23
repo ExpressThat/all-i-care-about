@@ -1,6 +1,28 @@
 import { Search } from "lucide-react";
-import type { ProviderPlugin } from "../providerTypes";
+import {
+  defineProviderFieldShow,
+  type ProviderPlugin,
+  type ProviderSettingsRecord,
+} from "../providerTypes";
 import { openSearchProviderCapabilities } from "./capabilities";
+
+const openSearchAuthModes = [
+  { value: "none", label: "None" },
+  { value: "basic", label: "Basic" },
+  { value: "bearer", label: "Bearer Token" },
+] as const;
+
+type OpenSearchProviderSettings = ProviderSettingsRecord & {
+  apiUrl?: string;
+  indexAlias?: string;
+  authMode?: (typeof openSearchAuthModes)[number]["value"];
+  username?: string;
+  password?: string;
+  bearerToken?: string;
+};
+
+const showOpenSearchField =
+  defineProviderFieldShow<OpenSearchProviderSettings>;
 
 export const openSearchProviderPlugin = {
   type: "opensearch",
@@ -32,11 +54,7 @@ export const openSearchProviderPlugin = {
       required: true,
       placeholder: "Select authentication",
       description: "How this provider should authenticate to OpenSearch.",
-      options: [
-        { value: "none", label: "None" },
-        { value: "basic", label: "Basic" },
-        { value: "bearer", label: "Bearer Token" },
-      ],
+      options: openSearchAuthModes,
     },
     {
       key: "username",
@@ -45,6 +63,7 @@ export const openSearchProviderPlugin = {
       required: false,
       placeholder: "admin",
       description: "Username for basic authentication.",
+      show: showOpenSearchField((settings) => settings.authMode === "basic"),
     },
     {
       key: "password",
@@ -54,6 +73,7 @@ export const openSearchProviderPlugin = {
       secret: true,
       placeholder: "password",
       description: "Encrypted password for basic authentication.",
+      show: showOpenSearchField((settings) => settings.authMode === "basic"),
     },
     {
       key: "bearerToken",
@@ -63,6 +83,7 @@ export const openSearchProviderPlugin = {
       secret: true,
       placeholder: "token",
       description: "Encrypted bearer token for token-based authentication.",
+      show: showOpenSearchField((settings) => settings.authMode === "bearer"),
     },
   ] as const,
   capabilities: openSearchProviderCapabilities,

@@ -4,6 +4,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { Toaster } from "@/components/ui/sonner";
 import { HomePage } from "@/components/home/HomePage";
 import { IssuesPage } from "@/components/issues/IssuesPage";
+import { LogsPage } from "@/components/log-viewer/LogsPage";
 import { RepositoriesPage } from "@/components/repositories/RepositoriesPage";
 import { ThemeController } from "@/lib/settings/theme/ThemeController";
 import Layout from "./components/ui/custom/layout";
@@ -43,6 +44,8 @@ function App() {
           <RepositoriesPage />
         ) : activePage === "issues" ? (
           <IssuesPage />
+        ) : activePage === "logs" ? (
+          <LogsPage />
         ) : (
           <HomePage />
         )}

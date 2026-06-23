@@ -11,6 +11,7 @@ import type {
   ProviderField,
   ProviderInstance,
 } from "@/lib/providers/providerTypes";
+import { resolveVisibleProviderFields } from "@/lib/providers/providerSettings";
 import { getProviderRateLimitUsed } from "@/lib/repositories/repositoryCache";
 
 export function ProviderCard({
@@ -24,7 +25,8 @@ export function ProviderCard({
 }) {
   const plugin = getProviderPlugin(provider.type);
   const Icon = plugin?.icon ?? Workflow;
-  const secretFields = plugin?.fields.filter(isSecretField) ?? [];
+  const [visibleFields, setVisibleFields] = useState<ProviderField[]>([]);
+  const secretFields = collectSecretFields(visibleFields);
   const [rateLimitUsed, setRateLimitUsed] = useState<number | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,32 @@ export function ProviderCard({
       unsubscribe?.();
     };
   }, [provider.id]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (!plugin) {
+      setVisibleFields([]);
+      return;
+    }
+
+    void resolveVisibleProviderFields(plugin.fields, provider.settings)
+      .then((nextFields) => {
+        if (isCurrent) {
+          setVisibleFields(nextFields);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to resolve provider field visibility.", error);
+        if (isCurrent) {
+          setVisibleFields([...plugin.fields]);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [plugin, provider.settings]);
 
   async function loadRateLimitUsed() {
     try {
@@ -133,4 +161,14 @@ function getCapabilityDisplayName(capability: ProviderCapability) {
 
 function isSecretField(field: ProviderField) {
   return "secret" in field && field.secret === true;
+}
+
+function collectSecretFields(fields: readonly ProviderField[]): ProviderField[] {
+  return fields.flatMap((field) => {
+    if (field.type === "group") {
+      return collectSecretFields(field.fields);
+    }
+
+    return isSecretField(field) ? [field] : [];
+  });
 }

@@ -46,11 +46,13 @@ export function matchesSearch(value: string, search: string) {
 
 export function shouldWarnBeforeProviderSave({
   editingProvider,
+  fields,
   fieldValues,
   plugin,
   provider,
 }: {
   editingProvider: ProviderInstance | null;
+  fields: readonly ProviderField[];
   fieldValues: Record<string, ProviderFieldFormValue>;
   plugin: ProviderPlugin;
   provider: ProviderInstance;
@@ -62,8 +64,13 @@ export function shouldWarnBeforeProviderSave({
   const previousOrigins = getProviderAllowedOrigins(
     plugin,
     editingProvider.settings,
+    fields,
   );
-  const nextOrigins = getProviderAllowedOrigins(plugin, provider.settings);
+  const nextOrigins = getProviderAllowedOrigins(
+    plugin,
+    provider.settings,
+    fields,
+  );
 
   if (previousOrigins.join("\n") === nextOrigins.join("\n")) {
     return false;
@@ -71,7 +78,7 @@ export function shouldWarnBeforeProviderSave({
 
   return hasExistingSecretWithoutReplacement({
     fieldValues,
-    fields: plugin.fields,
+    fields,
     settings: editingProvider.settings,
     path: [],
   });

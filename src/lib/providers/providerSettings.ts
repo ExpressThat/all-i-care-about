@@ -15,11 +15,13 @@ export type ProviderFieldFormValues = Record<string, ProviderFieldFormValue>;
 
 export async function collectPersistedProviderSettings({
   existingSettings,
+  fields,
   fieldValues,
   isEditing,
   plugin,
 }: {
   existingSettings?: ProviderSettingsRecord;
+  fields?: readonly ProviderField[];
   fieldValues: ProviderFieldFormValues;
   isEditing: boolean;
   plugin: ProviderPlugin;
@@ -27,7 +29,7 @@ export async function collectPersistedProviderSettings({
   return collectPersistedFields({
     existingSettings,
     fieldValues,
-    fields: plugin.fields,
+    fields: fields ?? plugin.fields,
     isEditing,
     path: [],
   });
@@ -52,6 +54,45 @@ export function getEditableProviderFieldValues(
   }
 
   return collectEditableFields(plugin.fields, settings, []);
+}
+
+export function getProviderSettingsFromFieldValues(
+  fields: readonly ProviderField[],
+  fieldValues: ProviderFieldFormValues,
+): ProviderSettingsRecord {
+  return collectFormValueSettings(fields, fieldValues, []);
+}
+
+export async function resolveVisibleProviderFields(
+  fields: readonly ProviderField[],
+  settings: ProviderSettingsRecord,
+): Promise<ProviderField[]> {
+  const visibleFields: ProviderField[] = [];
+
+  for (const field of fields) {
+    if (!(await isProviderFieldVisible(field, settings))) {
+      continue;
+    }
+
+    if (field.type === "group") {
+      const visibleChildFields = await resolveVisibleProviderFields(
+        field.fields,
+        settings,
+      );
+
+      if (visibleChildFields.length > 0) {
+        visibleFields.push({
+          ...field,
+          fields: visibleChildFields,
+        });
+      }
+      continue;
+    }
+
+    visibleFields.push(field);
+  }
+
+  return visibleFields;
 }
 
 export function normalizePersistedFieldValue(
@@ -90,15 +131,19 @@ export function normalizePersistedFieldValue(
 export function getProviderAllowedOrigins(
   plugin: ProviderPlugin,
   settings: ProviderSettingsRecord,
+  fields: readonly ProviderField[] = plugin.fields,
 ) {
   return normalizeOriginSet([
     ...(plugin.httpAccess?.staticAllowedOrigins ?? []),
-    ...collectOriginAccessFields(plugin.fields, settings),
+    ...collectOriginAccessFields(fields, settings),
   ]);
 }
 
-export function getProviderSecretSettingPaths(plugin: ProviderPlugin) {
-  return collectSecretSettingPaths(plugin.fields, []);
+export function getProviderSecretSettingPaths(
+  plugin: ProviderPlugin,
+  fields: readonly ProviderField[] = plugin.fields,
+) {
+  return collectSecretSettingPaths(fields, []);
 }
 
 async function collectPersistedFields({
@@ -272,6 +317,54 @@ function collectEditableFields(
   }
 
   return fieldValues;
+}
+
+function collectFormValueSettings(
+  fields: readonly ProviderField[],
+  fieldValues: ProviderFieldFormValues,
+  path: string[],
+) {
+  const settings: ProviderSettingsRecord = {};
+
+  for (const field of fields) {
+    if (field.type === "group") {
+      const groupSettings = collectFormValueSettings(field.fields, fieldValues, [
+        ...path,
+        field.key,
+      ]);
+
+      if (Object.keys(groupSettings).length > 0) {
+        settings[field.key] = groupSettings;
+      }
+      continue;
+    }
+
+    const value = normalizePersistedFieldValue(
+      field,
+      fieldValues[getFieldFormKey(path, field.key)],
+    );
+
+    if (value !== undefined) {
+      settings[field.key] = value;
+    }
+  }
+
+  return settings;
+}
+
+async function isProviderFieldVisible(
+  field: ProviderField,
+  settings: ProviderSettingsRecord,
+) {
+  if (field.show === undefined) {
+    return true;
+  }
+
+  if (typeof field.show === "boolean") {
+    return field.show;
+  }
+
+  return field.show(settings);
 }
 
 function toRuntimeFieldValue(

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,9 +19,12 @@ import {
   getEditableProviderFieldValues,
   getProviderAllowedOrigins,
   getProviderSecretSettingPaths,
+  getProviderSettingsFromFieldValues,
+  resolveVisibleProviderFields,
   type ProviderFieldFormValue,
 } from "@/lib/providers/providerSettings";
 import type {
+  ProviderField,
   ProviderInstance,
   ProviderType,
 } from "@/lib/providers/providerTypes";
@@ -68,8 +71,48 @@ export function AddProviderWizard({
   const [error, setError] = useState("");
   const [pendingProviderSave, setPendingProviderSave] =
     useState<ProviderInstance | null>(null);
+  const [pendingVisibleFields, setPendingVisibleFields] = useState<
+    readonly ProviderField[]
+  >([]);
+  const [visibleFields, setVisibleFields] = useState<ProviderField[]>([]);
   const selectedPlugin = getProviderPlugin(selectedProviderType);
   const isEditing = Boolean(editingProvider);
+  const visibilitySettings = useMemo(
+    () =>
+      selectedPlugin
+        ? getProviderSettingsFromFieldValues(selectedPlugin.fields, fieldValues)
+        : {},
+    [fieldValues, selectedPlugin],
+  );
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (!selectedPlugin) {
+      setVisibleFields([]);
+      return;
+    }
+
+    void resolveVisibleProviderFields(
+      selectedPlugin.fields,
+      visibilitySettings,
+    )
+      .then((nextFields) => {
+        if (isCurrent) {
+          setVisibleFields(nextFields);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to resolve provider field visibility.", error);
+        if (isCurrent) {
+          setVisibleFields([...selectedPlugin.fields]);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedPlugin, visibilitySettings]);
 
   useEffect(() => {
     if (!open) {
@@ -91,6 +134,7 @@ export function AddProviderWizard({
     setIsSaving(false);
     setError("");
     setPendingProviderSave(null);
+    setPendingVisibleFields([]);
   }, [editingProvider, open]);
 
   function resetWizard() {
@@ -111,6 +155,7 @@ export function AddProviderWizard({
     setIsSaving(false);
     setError("");
     setPendingProviderSave(null);
+    setPendingVisibleFields([]);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -128,10 +173,26 @@ export function AddProviderWizard({
       return;
     }
 
+    let nextVisibleFields: ProviderField[];
+    try {
+      nextVisibleFields = await resolveVisibleProviderFields(
+        selectedPlugin.fields,
+        getProviderSettingsFromFieldValues(selectedPlugin.fields, fieldValues),
+      );
+    } catch (visibilityError) {
+      console.error(
+        "Failed to resolve provider field visibility.",
+        visibilityError,
+      );
+      setError("Failed to resolve provider settings.");
+      return;
+    }
+    setVisibleFields(nextVisibleFields);
+
     const validationError = await validateProviderFieldValues({
       existingSettings: editingProvider?.settings,
       fieldValues,
-      fields: selectedPlugin.fields,
+      fields: nextVisibleFields,
       isEditing,
     });
     if (validationError) {
@@ -154,6 +215,7 @@ export function AddProviderWizard({
         displayName: editingProvider?.displayName ?? selectedPlugin.label,
         settings: await collectPersistedProviderSettings({
           existingSettings: editingProvider?.settings,
+          fields: nextVisibleFields,
           fieldValues,
           isEditing,
           plugin: selectedPlugin,
@@ -164,17 +226,19 @@ export function AddProviderWizard({
       if (
         shouldWarnBeforeProviderSave({
           editingProvider,
+          fields: nextVisibleFields,
           fieldValues,
           plugin: selectedPlugin,
           provider,
         })
       ) {
         setPendingProviderSave(provider);
+        setPendingVisibleFields(nextVisibleFields);
         setIsSaving(false);
         return;
       }
 
-      await saveProviderDraft(provider);
+      await saveProviderDraft(provider, nextVisibleFields);
     } catch (saveError) {
       console.error("Failed to save provider.", saveError);
       setError("Failed to save provider.");
@@ -182,7 +246,10 @@ export function AddProviderWizard({
     }
   }
 
-  async function saveProviderDraft(provider: ProviderInstance) {
+  async function saveProviderDraft(
+    provider: ProviderInstance,
+    fields: readonly ProviderField[] = visibleFields,
+  ) {
     setIsSaving(true);
     setError("");
 
@@ -194,10 +261,15 @@ export function AddProviderWizard({
         allowedOrigins: getProviderAllowedOrigins(
           selectedPlugin,
           provider.settings,
+          fields,
         ),
-        secretSettingPaths: getProviderSecretSettingPaths(selectedPlugin),
+        secretSettingPaths: getProviderSecretSettingPaths(
+          selectedPlugin,
+          fields,
+        ),
       });
       setPendingProviderSave(null);
+      setPendingVisibleFields([]);
       handleOpenChange(false);
     } catch (saveError) {
       console.error("Failed to save provider.", saveError);
@@ -235,6 +307,7 @@ export function AddProviderWizard({
                     setSelectedCapabilities([...plugin.capabilities]);
                     setCapabilitySearch("");
                     setFieldValues(getEditableProviderFieldValues(plugin, {}));
+                    setVisibleFields([...plugin.fields]);
                     setError("");
                   }}
                   providerPlugins={providerPlugins}
@@ -261,7 +334,7 @@ export function AddProviderWizard({
                       <h3 className="text-sm font-semibold">Settings</h3>
                       <ProviderFieldsEditor
                         fieldValues={fieldValues}
-                        fields={selectedPlugin.fields}
+                        fields={visibleFields}
                         onChange={(fieldKey, value) => {
                           setFieldValues((current) => ({
                             ...current,
@@ -308,8 +381,13 @@ export function AddProviderWizard({
       </Dialog>
       <ProviderSecretClearWarning
         isSaving={isSaving}
-        onCancel={() => setPendingProviderSave(null)}
-        onConfirm={(provider) => void saveProviderDraft(provider)}
+        onCancel={() => {
+          setPendingProviderSave(null);
+          setPendingVisibleFields([]);
+        }}
+        onConfirm={(provider) =>
+          void saveProviderDraft(provider, pendingVisibleFields)
+        }
         pendingProviderSave={pendingProviderSave}
       />
     </>

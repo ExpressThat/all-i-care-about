@@ -67,6 +67,21 @@ export type ProviderSecurity = {
 /** Provider settings map persisted under a provider instance. */
 export type ProviderSettingsRecord = Record<string, ProviderSettingValue>;
 
+/** Conditional provider field visibility based on current provider settings. */
+export type ProviderFieldShow<
+  Settings extends ProviderSettingsRecord = ProviderSettingsRecord,
+> =
+  | boolean
+  | {
+      bivarianceHack(settings: Settings): boolean | Promise<boolean>;
+    }["bivarianceHack"];
+
+export function defineProviderFieldShow<
+  Settings extends ProviderSettingsRecord,
+>(show: Exclude<ProviderFieldShow<Settings>, boolean>): ProviderFieldShow {
+  return show as ProviderFieldShow;
+}
+
 /** Display option for a provider select field. */
 export type ProviderSelectOption = {
   /** Persisted string value written when the option is selected. */
@@ -103,6 +118,8 @@ type ProviderFieldBase = {
   placeholder?: string;
   /** Optional help text shown below the field. */
   description?: string;
+  /** Whether this field is active for the current provider settings. */
+  show?: ProviderFieldShow;
 };
 
 type ProviderTextFieldBase = ProviderFieldBase & {
@@ -326,9 +343,14 @@ type OptionalNonSecretSettings<Fields extends readonly ProviderField[]> = {
 type NonSecretSettingsFromFields<Fields extends readonly ProviderField[]> =
   RequiredNonSecretSettings<Fields> & OptionalNonSecretSettings<Fields>;
 
+export type ProviderSettingsForFields<Fields extends readonly ProviderField[]> =
+  NonSecretSettingsFromFields<Fields>;
+
 type ImplementationValueForField<Field extends ProviderField> =
   Field extends ProviderGroupField<infer Fields>
     ? NonSecretSettingsFromFields<Fields>
+    : Field extends SelectProviderField
+      ? SelectValueForField<Field>
     : Field extends { type: "number" | "time" }
       ? number
       : Field extends { type: "boolean" }
@@ -336,6 +358,13 @@ type ImplementationValueForField<Field extends ProviderField> =
         : Field extends { type: "date" | "datetime" }
           ? Date
           : string;
+
+type SelectValueForField<Field extends SelectProviderField> =
+  Field["options"] extends readonly (infer Option)[]
+    ? Option extends { value: infer Value extends string }
+      ? Value
+      : string
+    : string;
 
 /** Known plugin metadata narrowed by provider type. */
 export type ProviderPluginForType<Type extends ProviderType> = Extract<
